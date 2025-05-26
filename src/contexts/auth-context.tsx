@@ -34,9 +34,12 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // True while initial auth state is being determined or actions are in progress
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    setIsClient(true); // Component has mounted on the client
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       setLoading(true); // Set loading true at the start of auth state change
       if (firebaseUser) {
@@ -50,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           // New user, create profile
           const intendedRole = localStorage.getItem(INTENDED_ROLE_LS_KEY) as UserProfile['role'] | null;
-          const roleToSet = intendedRole || 'user'; // Default to 'user' if not found, though login page should set it
+          const roleToSet = intendedRole || 'user'; // Default to 'user' if not found
 
           if (!intendedRole) {
             console.warn("Intended role not found in localStorage during new user setup. Defaulting to 'user'.");
@@ -86,12 +89,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await signInWithPopup(auth, provider);
       // User state will be updated by onAuthStateChanged, which will then handle profile creation/fetching.
-      // setLoading(false) will be handled in onAuthStateChanged
     } catch (error) {
       console.error("Error signing in with Google:", error);
       localStorage.removeItem(INTENDED_ROLE_LS_KEY); // Clean up on error
-      setLoading(false); // Ensure loading is false on error
+      setLoading(false); // Ensure loading is false on error if signInWithPopup itself errors before onAuthStateChanged triggers
     }
+    // setLoading(false) will be handled by onAuthStateChanged after successful sign-in
   };
 
   const signOut = async () => {
@@ -106,13 +109,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
   };
-
-  if (loading && typeof window !== 'undefined' && !user) { // Show loading screen only if loading AND user isn't set yet client-side
-    return <LoadingScreen />;
-  }
   
   return (
     <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut }}>
+      {isClient && loading && !user && <LoadingScreen />} {/* Show loading screen as overlay only on client during initial load if no user yet and still loading */}
       {children}
     </AuthContext.Provider>
   );
