@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/auth-context";
 import { Home, LogIn, LogOut, User, Briefcase, Scissors, Search, Menu } from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useState } from "react";
 
 export function Header() {
@@ -118,10 +118,14 @@ export function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-[300px] sm:w-[400px] p-0">
-              <div className="p-6">
+              <SheetHeader>
+                <SheetTitle className="sr-only">Mobile Navigation Menu</SheetTitle>
+                {/* You can also add a SheetDescription here if needed, also sr-only */}
+              </SheetHeader>
+              <div className="p-6 border-b">
                 <Logo href="/" onClick={() => setMobileMenuOpen(false)} />
               </div>
-              <nav className="flex flex-col gap-2 p-4">
+              <nav className="flex flex-col gap-1 p-4">
                 {mainNavLinks.map(link => <MobileNavLinkItem key={link.href} {...link} onClick={() => setMobileMenuOpen(false)} />)}
                 {user && userNavLinks.map(link => <MobileNavLinkItem key={link.href} {...link} onClick={() => setMobileMenuOpen(false)} />)}
                 <div className="pt-4 mt-4 border-t">
