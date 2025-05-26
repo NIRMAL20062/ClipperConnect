@@ -31,6 +31,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased font-sans`}
+        suppressHydrationWarning={true}
       >
         <AuthProvider>
           <div className="flex min-h-screen flex-col">
