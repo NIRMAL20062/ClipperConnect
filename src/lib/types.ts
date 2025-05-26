@@ -4,9 +4,11 @@ export interface UserProfile {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
-  role?: 'user' | 'shopkeeper';
+  role: 'user' | 'shopkeeper'; // Role is now mandatory
   preferredBarber?: string;
   addresses?: UserAddress[];
+  createdAt?: any; // Firestore server timestamp
+  updatedAt?: any; // Firestore server timestamp
   // Loyalty points, etc.
 }
 
@@ -58,6 +60,7 @@ export interface Booking {
   shopId: string;
   serviceId: string;
   serviceName: string; // Denormalized for easier display
+  shopName?: string; // Denormalized for easier display on user dashboard
   barberId?: string; // Optional specific barber
   startTime: Date;
   endTime: Date;
@@ -66,6 +69,7 @@ export interface Booking {
   totalPrice: number;
   createdAt: Date;
   cancellationReason?: string;
+  userName?: string; // Denormalized for shop bookings display
 }
 
 // For AI Scheduler
@@ -99,5 +103,5 @@ export interface AIOptimalTimeSlotsInput {
   barbershopId: string;
   serviceType: string;
   date: string; // YYYY-MM-DD
-  preferredTime?: 'morning' | 'afternoon' | 'evening';
+  preferredTime?: 'morning' | 'afternoon' | 'evening' | 'any';
 }

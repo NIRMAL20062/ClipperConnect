@@ -2,26 +2,31 @@
 "use client";
 
 import type { User as FirebaseUser } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase"; // Import db for Firestore
 import { onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut } from "firebase/auth";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore"; // Firestore functions
 import type { ReactNode} from "react";
 import { createContext, useContext, useEffect, useState } from "react";
 import { LoadingScreen } from "@/components/common/loading-screen";
 
-// Define more specific user type if needed, e.g., with roles
+const INTENDED_ROLE_LS_KEY = "clipperconnect_intended_role";
+
 export interface UserProfile {
   uid: string;
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
-  // Add custom fields like role, preferredBarber, addresses etc.
-  role?: 'user' | 'shopkeeper';
+  role: 'user' | 'shopkeeper'; // Role is now mandatory
+  createdAt?: any; // Firestore server timestamp
+  updatedAt?: any; // Firestore server timestamp
+  // Add custom fields like preferredBarber, addresses etc.
+  preferredBarber?: string;
 }
 
 interface AuthContextType {
   user: UserProfile | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: (intendedRole: UserProfile['role']) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -33,20 +38,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+      setLoading(true); // Set loading true at the start of auth state change
       if (firebaseUser) {
-        // Here you might fetch additional user profile data from Firestore
-        // For now, we map directly from FirebaseUser
-        const userProfile: UserProfile = {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          displayName: firebaseUser.displayName,
-          photoURL: firebaseUser.photoURL,
-          // TODO: Fetch role from Firestore
-          role: Math.random() > 0.5 ? 'shopkeeper' : 'user', // Placeholder for role
-        };
-        setUser(userProfile);
+        const userDocRef = doc(db, "users", firebaseUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (userDocSnap.exists()) {
+          // User exists, fetch their profile
+          setUser(userDocSnap.data() as UserProfile);
+          localStorage.removeItem(INTENDED_ROLE_LS_KEY); // Clean up
+        } else {
+          // New user, create profile
+          const intendedRole = localStorage.getItem(INTENDED_ROLE_LS_KEY) as UserProfile['role'] | null;
+          const roleToSet = intendedRole || 'user'; // Default to 'user' if not found, though login page should set it
+
+          if (!intendedRole) {
+            console.warn("Intended role not found in localStorage during new user setup. Defaulting to 'user'.");
+          }
+          
+          const newUserProfile: UserProfile = {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName,
+            photoURL: firebaseUser.photoURL,
+            role: roleToSet,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          };
+          await setDoc(userDocRef, newUserProfile);
+          setUser(newUserProfile);
+          localStorage.removeItem(INTENDED_ROLE_LS_KEY); // Clean up
+        }
       } else {
         setUser(null);
+        localStorage.removeItem(INTENDED_ROLE_LS_KEY); // Clean up if user signs out
       }
       setLoading(false);
     });
@@ -54,15 +79,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (intendedRole: UserProfile['role']) => {
     setLoading(true);
+    localStorage.setItem(INTENDED_ROLE_LS_KEY, intendedRole); // Store intended role
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-      // User state will be updated by onAuthStateChanged
+      // User state will be updated by onAuthStateChanged, which will then handle profile creation/fetching.
+      // setLoading(false) will be handled in onAuthStateChanged
     } catch (error) {
       console.error("Error signing in with Google:", error);
-      // Optionally show a toast message to the user
+      localStorage.removeItem(INTENDED_ROLE_LS_KEY); // Clean up on error
       setLoading(false); // Ensure loading is false on error
     }
   };
@@ -71,17 +98,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       await firebaseSignOut(auth);
-      // User state will be updated by onAuthStateChanged
+      setUser(null); // Explicitly set user to null
+      localStorage.removeItem(INTENDED_ROLE_LS_KEY);
     } catch (error) {
       console.error("Error signing out:", error);
+    } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
+  if (loading && typeof window !== 'undefined' && !user) { // Show loading screen only if loading AND user isn't set yet client-side
     return <LoadingScreen />;
   }
-
+  
   return (
     <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut }}>
       {children}
