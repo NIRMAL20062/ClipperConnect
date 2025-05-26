@@ -11,11 +11,18 @@ const firebaseConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID, // Ensured this is included
 };
 
 // Initialize Firebase
 let app: FirebaseApp;
 if (!getApps().length) {
+  // Check if all required config values are present
+  if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId) {
+    console.error("Firebase configuration is missing or incomplete. Please check your .env file and Firebase project settings.");
+    // Potentially throw an error or handle this state appropriately
+    // For now, we'll let initializeApp handle the error if critical parts are missing
+  }
   app = initializeApp(firebaseConfig);
 } else {
   app = getApp();
@@ -26,3 +33,4 @@ const db: Firestore = getFirestore(app);
 const storage: FirebaseStorage = getStorage(app);
 
 export { app, auth, db, storage };
+
