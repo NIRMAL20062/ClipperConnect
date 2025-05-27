@@ -20,11 +20,8 @@ export default function LoginPage() {
       if (redirectPath) {
         router.push(redirectPath);
       } else {
-        if (user.role === 'shopkeeper') {
-          router.push("/dashboard/shop");
-        } else {
-          router.push("/dashboard/user");
-        }
+        // Redirect to homepage after login
+        router.push("/");
       }
     }
   }, [user, router, searchParams]);
