@@ -75,7 +75,7 @@ export default function HomePage() {
               </div>
             </div>
             <Image
-              src="https://placehold.co/600x400.png"
+              src="https://t3.ftcdn.net/jpg/11/20/21/70/240_F_1120217022_EIphwSclvOAbNXOrB8L6kJHCMQfzIHbd.jpg"
               data-ai-hint="barbershop modern"
               width="600"
               height="400"
