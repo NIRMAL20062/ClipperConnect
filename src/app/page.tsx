@@ -39,7 +39,7 @@ export default function HomePage() {
                         <BookOpenText className="mr-2 h-5 w-5" /> View Bookings
                       </Link>
                     </Button>
-                     <Button asChild variant="outline" size="lg">
+                     <Button asChild variant="secondary" size="lg">
                       <Link href="/dashboard/shop/ai-scheduler">
                         <Bot className="mr-2 h-5 w-5" /> AI Scheduler
                       </Link>
@@ -79,7 +79,7 @@ export default function HomePage() {
               data-ai-hint="barbershop modern"
               width="600"
               height="400"
-              alt="Barbershop illustration"
+              alt="Stylish modern barbershop interior or haircut scene"
               className="mx-auto aspect-video overflow-hidden rounded-xl object-cover sm:w-full lg:order-last"
             />
           </div>
