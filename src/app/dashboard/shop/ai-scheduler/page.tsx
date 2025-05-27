@@ -12,7 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Bot, Sparkles, Lightbulb, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { AIScheduleInput, AIOptimalTimeSlotsInput } from "@/lib/types";
-import { optimizeBarbershopEfficiency, suggestOptimalTimeSlots, type OptimizeBarbershopEfficiencyOutput, type SuggestOptimalTimeSlotsOutput } from "@/ai/flows"; // Assuming flows are exported correctly
+import { optimizeBarbershopEfficiency, type OptimizeBarbershopEfficiencyOutput } from "@/ai/flows/optimize-barbershop-efficiency";
+import { suggestOptimalTimeSlots, type SuggestOptimalTimeSlotsOutput } from "@/ai/flows/suggest-optimal-time-slots";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 
@@ -255,4 +256,3 @@ export default function AISchedulerPage() {
     </div>
   );
 }
-
