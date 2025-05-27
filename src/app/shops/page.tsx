@@ -7,6 +7,7 @@ import { ShopFilters } from "@/components/shops/shop-filters";
 import type { Barbershop } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Card } from "@/components/ui/card"; // Added import
 import { Frown } from "lucide-react";
 
 // Mock data for barbershops
