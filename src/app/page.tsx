@@ -2,7 +2,7 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, Scissors, Search, CalendarDays, LayoutDashboard } from "lucide-react";
+import { ArrowRight, Scissors, Search, CalendarDays, LayoutDashboard, Settings, BookOpenText, Bot } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
@@ -27,23 +27,50 @@ export default function HomePage() {
                 </p>
               </div>
               <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                  <Link href="/shops">
-                    Find a Barbershop <Search className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
-                {user ? (
-                  <Button asChild variant="outline" size="lg">
-                    <Link href="/dashboard">
-                      Go to Dashboard <LayoutDashboard className="ml-2 h-5 w-5" />
-                    </Link>
-                  </Button>
-                ) : (
-                  <Button asChild variant="outline" size="lg">
-                    <Link href="/login">
-                      Login / Sign Up <ArrowRight className="ml-2 h-5 w-5" />
-                    </Link>
-                  </Button>
+                {user && user.role === 'shopkeeper' ? (
+                  <>
+                    <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                      <Link href="/dashboard/shop/manage">
+                        <Settings className="mr-2 h-5 w-5" /> Manage Your Shop
+                      </Link>
+                    </Button>
+                    <Button asChild variant="outline" size="lg">
+                      <Link href="/dashboard/shop/bookings">
+                        <BookOpenText className="mr-2 h-5 w-5" /> View Bookings
+                      </Link>
+                    </Button>
+                     <Button asChild variant="outline" size="lg">
+                      <Link href="/dashboard/shop/ai-scheduler">
+                        <Bot className="mr-2 h-5 w-5" /> AI Scheduler
+                      </Link>
+                    </Button>
+                  </>
+                ) : user ? ( // Logged-in customer
+                  <>
+                    <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                      <Link href="/shops">
+                        Find a Barbershop <Search className="ml-2 h-5 w-5" />
+                      </Link>
+                    </Button>
+                    <Button asChild variant="outline" size="lg">
+                      <Link href="/dashboard">
+                        Go to Dashboard <LayoutDashboard className="ml-2 h-5 w-5" />
+                      </Link>
+                    </Button>
+                  </>
+                ) : ( // Not logged in
+                  <>
+                    <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                      <Link href="/shops">
+                        Find a Barbershop <Search className="ml-2 h-5 w-5" />
+                      </Link>
+                    </Button>
+                    <Button asChild variant="outline" size="lg">
+                      <Link href="/login">
+                        Login / Sign Up <ArrowRight className="ml-2 h-5 w-5" />
+                      </Link>
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
