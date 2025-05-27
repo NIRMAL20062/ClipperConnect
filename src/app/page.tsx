@@ -2,11 +2,14 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, Scissors, Search, CalendarDays } from "lucide-react";
+import { ArrowRight, Scissors, Search, CalendarDays, LayoutDashboard } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function HomePage() {
+  const { user } = useAuth();
+
   return (
     <div className="flex flex-col items-center">
       {/* Hero Section */}
@@ -29,11 +32,19 @@ export default function HomePage() {
                     Find a Barbershop <Search className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
-                <Button asChild variant="outline" size="lg">
-                  <Link href="/login">
-                    Login / Sign Up <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
+                {user ? (
+                  <Button asChild variant="outline" size="lg">
+                    <Link href="/dashboard">
+                      Go to Dashboard <LayoutDashboard className="ml-2 h-5 w-5" />
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button asChild variant="outline" size="lg">
+                    <Link href="/login">
+                      Login / Sign Up <ArrowRight className="ml-2 h-5 w-5" />
+                    </Link>
+                  </Button>
+                )}
               </div>
             </div>
             <Image
