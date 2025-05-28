@@ -13,7 +13,7 @@ import { Barbershop, Service, Booking } from "@/lib/types";
 import { AlertCircle, CalendarDays, Clock, Scissors, User as UserIcon, CheckCircle, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { mockShopsArray } from "@/lib/mock-data"; // Use centralized mock data
+import { mockShopsArray, mockUserBookings } from "@/lib/mock-data"; // Use centralized mock data
 
 // Generate mock time slots for a given date
 const generateMockTimeSlots = (date: Date | undefined, serviceDuration: number): string[] => {
@@ -121,30 +121,31 @@ export default function BookingPage() {
 
     setIsBooking(true);
     
-    const mockBookingData: Booking = {
-        id: Date.now().toString(),
+    const newBooking: Booking = {
+        id: `mock-${Date.now().toString()}`, // Ensure unique ID for mock data
         userId: user.uid,
         shopId: shop!.id,
         serviceId: selectedService.id,
         serviceName: selectedService.name,
-        shopName: shop!.name, // Add shop name to booking
+        shopName: shop!.name, 
         startTime: new Date(`${format(selectedDate, "yyyy-MM-dd")}T${selectedTime}`),
         endTime: new Date(new Date(`${format(selectedDate, "yyyy-MM-dd")}T${selectedTime}`).getTime() + selectedService.durationMinutes * 60000),
-        status: "confirmed", 
+        status: "confirmed", // Mocking as confirmed directly for simplicity now
         totalPrice: selectedService.price,
         createdAt: new Date(),
-        shopLocation: shop!.location, // Add shop location
-        shopGoogleMapsLink: shop!.location.googleMapsLink, // Add maps link
+        shopLocation: shop!.location, 
+        shopGoogleMapsLink: shop!.location.googleMapsLink, 
     };
     
     setTimeout(() => {
+      // Add this booking to mockUserBookings in mock-data.ts
+      mockUserBookings.push(newBooking);
+
       toast({ 
         title: "Booking Confirmed!", 
         description: `Your appointment for ${selectedService.name} at ${shop?.name} on ${format(selectedDate, "PPP")} at ${selectedTime} is confirmed. (Mocked)`,
         className: "bg-green-600 text-white",
       });
-      // Add this booking to mockUserBookings in mock-data.ts or a similar local state for immediate reflection on dashboard
-      // For now, just setting success state
       setIsBooking(false);
       setBookingSuccess(true);
     }, 1500);
@@ -310,3 +311,4 @@ export default function BookingPage() {
     </div>
   );
 }
+
