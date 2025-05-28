@@ -37,7 +37,7 @@ export interface Barbershop {
   };
   services: Service[];
   availability: AvailabilitySlot[]; // Could be more complex
-  // description, phone, website, etc.
+  description?: string; // Added for more shop details
 }
 
 export interface Service {
@@ -48,12 +48,15 @@ export interface Service {
   description?: string;
 }
 
+// Updated to be more aligned with shop management needs
 export interface AvailabilitySlot {
-  startTime: Date;
-  endTime: Date;
-  barberId?: string; // If specific barber is tied to slot
-  isBooked: boolean;
+  id: string; // e.g., 'monday', 'tuesday' or a unique ID
+  day: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday';
+  open: string; // HH:mm format, e.g., "09:00"
+  close: string; // HH:mm format, e.g., "18:00"
+  isAvailable: boolean; // True if open on this day, false if closed
 }
+
 
 export interface Booking {
   id: string;
@@ -71,6 +74,9 @@ export interface Booking {
   createdAt: Date;
   cancellationReason?: string;
   userName?: string; // Denormalized for shop bookings display
+  // For user dashboard enhancements:
+  shopLocation?: Barbershop['location'];
+  shopGoogleMapsLink?: string;
 }
 
 // For AI Scheduler

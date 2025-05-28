@@ -6,10 +6,10 @@ import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarCheck, History, PlusCircle, Edit, AlertTriangle } from "lucide-react";
-import type { Booking } from "@/lib/types";
+import { CalendarCheck, History, PlusCircle, MapPin, CalendarPlus, AlertTriangle, ExternalLink } from "lucide-react";
+import type { Booking, Barbershop } from "@/lib/types";
 import Link from "next/link";
-import { format } from "date-fns";
+import { format, formatISO, addMinutes as addMinutesFns } from "date-fns"; // For ISO formatting
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -22,63 +22,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-
-// Mock data
-const mockBookings: Booking[] = [
-  {
-    id: "booking1",
-    userId: "user1",
-    shopId: "1",
-    serviceId: "s1",
-    serviceName: "Classic Haircut",
-    shopName: "Gentleman's Choice Cuts",
-    startTime: new Date(new Date().setDate(new Date().getDate() + 2)), // Upcoming
-    endTime: new Date(new Date(new Date().setDate(new Date().getDate() + 2)).getTime() + 45 * 60000),
-    status: "confirmed",
-    totalPrice: 30,
-    createdAt: new Date(),
-  },
-  {
-    id: "booking2",
-    userId: "user1",
-    shopId: "2",
-    serviceId: "s3",
-    serviceName: "Designer Cut",
-    shopName: "The Modern Mane",
-    startTime: new Date(new Date().setDate(new Date().getDate() - 7)), // Past
-    endTime: new Date(new Date(new Date().setDate(new Date().getDate() - 7)).getTime() + 60 * 60000),
-    status: "completed",
-    totalPrice: 50,
-    createdAt: new Date(),
-  },
-  {
-    id: "booking3",
-    userId: "user1",
-    shopId: "1",
-    serviceId: "s2",
-    serviceName: "Beard Trim & Shape",
-    shopName: "Gentleman's Choice Cuts",
-    startTime: new Date(new Date().setDate(new Date().getDate() + 5)), // Upcoming
-    endTime: new Date(new Date(new Date().setDate(new Date().getDate() + 5)).getTime() + 25 * 60000),
-    status: "confirmed",
-    totalPrice: 20,
-    createdAt: new Date(),
-  },
-   {
-    id: "booking4",
-    userId: "user1",
-    shopId: "1",
-    serviceId: "s11",
-    serviceName: "Hot Towel Shave",
-    shopName: "Gentleman's Choice Cuts",
-    startTime: new Date(new Date().setDate(new Date().getDate() - 14)), // Past
-    endTime: new Date(new Date(new Date().setDate(new Date().getDate() - 14)).getTime() + 40 * 60000),
-    status: "completed",
-    totalPrice: 35,
-    createdAt: new Date(),
-  },
-];
-
+import { mockUserBookings, mockShopsArray } from "@/lib/mock-data"; // Using centralized mock data
 
 export default function UserDashboardPage() {
   const { user, loading } = useAuth();
@@ -88,62 +32,61 @@ export default function UserDashboardPage() {
 
   useEffect(() => {
     if (user) {
-      // Fetch user bookings from Firestore
-      // For now, using mock data
       setIsLoadingBookings(true);
-      // Filter mock bookings for the current user (mocking this part)
-      const userBookings = mockBookings.map(b => ({...b, shopName: b.shopName || "Sample Shop"}));
+      // MOCK: Filter mock bookings for the current user and enrich with shop location
+      const userBookingsWithShopDetails = mockUserBookings
+        .filter(b => b.userId === (user.uid || "user1")) // Fallback to "user1" for mock data if UID isn't set
+        .map(booking => {
+          const shopDetails = mockShopsArray.find(shop => shop.id === booking.shopId);
+          return {
+            ...booking,
+            shopLocation: shopDetails?.location,
+            shopGoogleMapsLink: shopDetails?.location?.googleMapsLink,
+          };
+        });
       
-      // Sort bookings: upcoming first, then by date
-      userBookings.sort((a, b) => {
+      userBookingsWithShopDetails.sort((a, b) => {
         const now = new Date();
-        const aIsUpcoming = a.startTime > now;
-        const bIsUpcoming = b.startTime > now;
+        const aIsUpcoming = a.startTime > now && (a.status === 'confirmed' || a.status === 'pending');
+        const bIsUpcoming = b.startTime > now && (b.status === 'confirmed' || b.status === 'pending');
         if (aIsUpcoming && !bIsUpcoming) return -1;
         if (!aIsUpcoming && bIsUpcoming) return 1;
-        return b.startTime.getTime() - a.startTime.getTime(); // Sort by date, newest first for past, earliest first for upcoming
+        // For upcoming, sort by earliest first
+        if (aIsUpcoming && bIsUpcoming) return a.startTime.getTime() - b.startTime.getTime();
+        // For past/cancelled, sort by most recent first
+        return b.startTime.getTime() - a.startTime.getTime(); 
       });
 
-      setBookings(userBookings);
+      setBookings(userBookingsWithShopDetails);
       setIsLoadingBookings(false);
     }
   }, [user]);
 
   const handleCancelBooking = async (bookingId: string) => {
-    // Mock cancellation
-    // In a real app, update Firestore document status to 'cancelled_by_user'
-    // and potentially notify the shop.
-    
-    // Check if booking can be cancelled (e.g. not too close to appointment time)
     const bookingToCancel = bookings.find(b => b.id === bookingId);
     if (bookingToCancel && bookingToCancel.startTime < new Date()) {
         toast({ title: "Cannot Cancel", description: "Past appointments cannot be cancelled.", variant: "destructive" });
         return;
     }
-    // Example: Cannot cancel within 24 hours
     if (bookingToCancel && (bookingToCancel.startTime.getTime() - new Date().getTime()) < 24 * 60 * 60 * 1000) {
         toast({ title: "Cancellation Period Expired", description: "Appointments cannot be cancelled less than 24 hours in advance.", variant: "destructive" });
         return;
     }
 
-
     setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'cancelled_by_user' } : b));
     toast({ title: "Booking Cancelled", description: `Booking ID ${bookingId} has been cancelled. (Mocked)` });
-    // Show rebooking options (e.g., link to shop page or booking page)
   };
-
 
   if (loading || isLoadingBookings) {
     return <div className="text-center py-10">Loading dashboard...</div>;
   }
 
   if (!user) {
-    // This should ideally be handled by a protected route wrapper or redirect in a higher component
     return <div className="text-center py-10">Please log in to view your dashboard.</div>;
   }
 
-  const upcomingBookings = bookings.filter(b => b.status === 'confirmed' && b.startTime > new Date());
-  const pastBookings = bookings.filter(b => b.status !== 'confirmed' || b.startTime <= new Date());
+  const upcomingBookings = bookings.filter(b => (b.status === 'confirmed' || b.status === 'pending') && b.startTime > new Date());
+  const pastBookings = bookings.filter(b => b.status === 'completed' || b.status.includes('cancel') || (b.status === 'confirmed' && b.startTime <= new Date()));
 
   return (
     <div className="space-y-8">
@@ -197,68 +140,109 @@ function BookingList({ bookings, onCancel, isUpcoming }: BookingListProps) {
     );
   }
 
+  const generateGoogleCalendarLink = (booking: Booking) => {
+    const title = encodeURIComponent(`${booking.serviceName} at ${booking.shopName}`);
+    // Format for Google Calendar: YYYYMMDDTHHmmSSZ/YYYYMMDDTHHmmSSZ
+    // The dates from JS Date object's toISOString are already in UTC.
+    const startTimeISO = formatISO(booking.startTime).replace(/-/g, '').replace(/:/g, '').slice(0, -5) + 'Z';
+    const endTimeISO = formatISO(booking.endTime).replace(/-/g, '').replace(/:/g, '').slice(0, -5) + 'Z';
+    const dates = `${startTimeISO}/${endTimeISO}`;
+    const details = encodeURIComponent(`Appointment for ${booking.serviceName}.\nShop: ${booking.shopName}\nAddress: ${booking.shopLocation?.address || 'N/A'}`);
+    const location = encodeURIComponent(booking.shopLocation?.address || booking.shopName || '');
+
+    return `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&location=${location}`;
+  };
+
   return (
     <div className="space-y-4 mt-4">
-      {bookings.map(booking => (
-        <Card key={booking.id} className="shadow-md hover:shadow-lg transition-shadow">
-          <CardHeader className="flex flex-row justify-between items-start pb-2">
-            <div>
-              <CardTitle className="text-xl">{booking.serviceName}</CardTitle>
-              <CardDescription>at {booking.shopName || "Unknown Shop"}</CardDescription>
-            </div>
-            <span className={`px-2 py-1 text-xs rounded-full font-medium
-              ${booking.status === 'confirmed' ? 'bg-green-100 text-green-700' : 
-                booking.status === 'completed' ? 'bg-blue-100 text-blue-700' :
-                booking.status.includes('cancelled') ? 'bg-red-100 text-red-700' :
-                'bg-yellow-100 text-yellow-700'}`}>
-              {booking.status.replace('_', ' ').toUpperCase()}
-            </span>
-          </CardHeader>
-          <CardContent>
-            <p><strong>Date:</strong> {format(booking.startTime, "EEEE, MMMM d, yyyy")}</p>
-            <p><strong>Time:</strong> {format(booking.startTime, "p")} - {format(booking.endTime, "p")}</p>
-            <p><strong>Price:</strong> ${booking.totalPrice.toFixed(2)}</p>
-          </CardContent>
-          {isUpcoming && booking.status === 'confirmed' && (
-            <CardFooter className="flex justify-end gap-2">
-              {/* <Button variant="outline" size="sm" asChild>
-                <Link href={`/book/${booking.shopId}?edit=${booking.id}`}>
-                  <Edit className="mr-2 h-3 w-3" /> Reschedule (Mock)
-                </Link>
-              </Button> */}
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm">
-                    <AlertTriangle className="mr-2 h-3 w-3" /> Cancel
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure you want to cancel?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action cannot be undone. Your appointment for {booking.serviceName} on {format(booking.startTime, "PPP 'at' p")} will be cancelled.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Keep Appointment</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => onCancel(booking.id)} className="bg-destructive hover:bg-destructive/90">
-                      Yes, Cancel Booking
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </CardFooter>
-          )}
-          {booking.status.includes('cancelled') && (
-            <CardFooter>
-                 <p className="text-sm text-muted-foreground italic">This booking was cancelled. Need to rebook?</p>
-                 <Button variant="link" asChild className="ml-2">
-                    <Link href={`/shops/${booking.shopId}`}>Visit {booking.shopName || "Shop"}</Link>
+      {bookings.map(booking => {
+        const shopLocation = booking.shopLocation;
+        const mapsLink = booking.shopGoogleMapsLink || (shopLocation ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(shopLocation.address)}` : "#");
+        
+        return (
+          <Card key={booking.id} className="shadow-md hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row justify-between items-start pb-3">
+              <div>
+                <CardTitle className="text-xl">{booking.serviceName}</CardTitle>
+                <CardDescription>at {booking.shopName || "Unknown Shop"}</CardDescription>
+              </div>
+              <span className={`px-2 py-1 text-xs rounded-full font-medium
+                ${booking.status === 'confirmed' ? 'bg-green-100 text-green-700' : 
+                  booking.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                  booking.status === 'completed' ? 'bg-blue-100 text-blue-700' :
+                  booking.status.includes('cancel') ? 'bg-red-100 text-red-700' :
+                  'bg-gray-100 text-gray-700'}`}>
+                {booking.status.replace(/_/g, ' ').toUpperCase()}
+              </span>
+            </CardHeader>
+            <CardContent className="space-y-1.5">
+              <p><strong>Date:</strong> {format(booking.startTime, "EEEE, MMMM d, yyyy")}</p>
+              <p><strong>Time:</strong> {format(booking.startTime, "p")} - {format(booking.endTime, "p")}</p>
+              <p><strong>Price:</strong> ${booking.totalPrice.toFixed(2)}</p>
+              {shopLocation && (
+                <div className="flex items-start text-sm text-muted-foreground pt-1">
+                  <MapPin className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0 text-primary" />
+                  <span>{shopLocation.address}</span>
+                </div>
+              )}
+            </CardContent>
+            <CardFooter className="flex flex-wrap justify-end gap-2 pt-3">
+              {shopLocation && (
+                 <Button variant="outline" size="sm" asChild>
+                    <a href={mapsLink} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="mr-2 h-3 w-3" /> Get Directions
+                    </a>
                  </Button>
+              )}
+              {isUpcoming && booking.status === 'confirmed' && (
+                <>
+                 <Button variant="outline" size="sm" asChild>
+                    <a href={generateGoogleCalendarLink(booking)} target="_blank" rel="noopener noreferrer">
+                        <CalendarPlus className="mr-2 h-3 w-3" /> Add to Calendar
+                    </a>
+                 </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" size="sm">
+                        <AlertTriangle className="mr-2 h-3 w-3" /> Cancel
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure you want to cancel?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. Your appointment for {booking.serviceName} on {format(booking.startTime, "PPP 'at' p")} will be cancelled.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Keep Appointment</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => onCancel(booking.id)} className="bg-destructive hover:bg-destructive/90">
+                          Yes, Cancel Booking
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </>
+              )}
+              {booking.status.includes('cancelled') && (
+                 <div className="w-full text-sm text-muted-foreground italic flex items-center">
+                     This booking was cancelled.
+                     <Button variant="link" asChild className="ml-1 p-0 h-auto">
+                        <Link href={`/shops/${booking.shopId}`}>Rebook at {booking.shopName || "Shop"}</Link>
+                     </Button>
+                 </div>
+              )}
+               {!isUpcoming && (booking.status === 'completed') && (
+                 <Button variant="outline" size="sm" asChild>
+                    <Link href={`/shops/${booking.shopId}?service=${booking.serviceId}`}>
+                        <History className="mr-2 h-3 w-3" /> Book Again
+                    </Link>
+                 </Button>
+              )}
             </CardFooter>
-          )}
-        </Card>
-      ))}
+          </Card>
+        )
+      })}
     </div>
   );
 }

@@ -7,82 +7,9 @@ import { ShopFilters } from "@/components/shops/shop-filters";
 import type { Barbershop } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Card } from "@/components/ui/card"; // Added import
+import { Card } from "@/components/ui/card";
 import { Frown } from "lucide-react";
-
-// Mock data for barbershops
-const mockShops: Barbershop[] = [
-  {
-    id: "1",
-    name: "Gentleman's Choice Cuts",
-    ownerId: "shopkeeper1",
-    photos: ["https://placehold.co/400x240.png?text=Gentleman's+Choice"],
-    rating: 4.8,
-    priceRange: "$$",
-    location: { address: "123 Barber Lane, Styleville", googleMapsLink: "#" },
-    services: [
-      { id: "s1", name: "Classic Haircut", price: 30, durationMinutes: 45 },
-      { id: "s2", name: "Beard Trim", price: 15, durationMinutes: 20 },
-    ],
-    availability: [],
-  },
-  {
-    id: "2",
-    name: "The Modern Mane",
-    ownerId: "shopkeeper2",
-    photos: ["https://placehold.co/400x240.png?text=Modern+Mane"],
-    rating: 4.5,
-    priceRange: "$$$",
-    location: { address: "456 Shear Street, Trendytown", googleMapsLink: "#" },
-    services: [
-      { id: "s3", name: "Designer Cut", price: 50, durationMinutes: 60 },
-      { id: "s4", name: "Hot Towel Shave", price: 35, durationMinutes: 40 },
-    ],
-    availability: [],
-  },
-  {
-    id: "3",
-    name: "Quick Snips",
-    ownerId: "shopkeeper3",
-    photos: ["https://placehold.co/400x240.png?text=Quick+Snips"],
-    rating: 4.2,
-    priceRange: "$",
-    location: { address: "789 Clipper Road, Fastville", googleMapsLink: "#" },
-    services: [
-      { id: "s5", name: "Buzz Cut", price: 20, durationMinutes: 20 },
-      { id: "s6", name: "Kids Haircut", price: 18, durationMinutes: 30 },
-    ],
-    availability: [],
-  },
-   {
-    id: "4",
-    name: "The Dapper Den",
-    ownerId: "shopkeeper4",
-    photos: ["https://placehold.co/400x240.png?text=Dapper+Den"],
-    rating: 4.9,
-    priceRange: "$$$",
-    location: { address: "101 Style Ave, Groomington", googleMapsLink: "#" },
-    services: [
-      { id: "s7", name: "Executive Cut & Style", price: 60, durationMinutes: 75 },
-      { id: "s8", name: "Luxury Beard Spa", price: 45, durationMinutes: 50 },
-    ],
-    availability: [],
-  },
-  {
-    id: "5",
-    name: "Urban Edge Barbers",
-    ownerId: "shopkeeper5",
-    photos: ["https://placehold.co/400x240.png?text=Urban+Edge"],
-    rating: 4.6,
-    priceRange: "$$",
-    location: { address: "202 Fade St, Metro City", googleMapsLink: "#" },
-    services: [
-      { id: "s9", name: "Skin Fade", price: 35, durationMinutes: 50 },
-      { id: "s10", name: "Hair Tinting", price: 40, durationMinutes: 60 },
-    ],
-    availability: [],
-  }
-];
+import { mockShopsArray } from "@/lib/mock-data"; // Use centralized mock data
 
 export default function ShopsPage() {
   const [shops, setShops] = useState<Barbershop[]>([]);
@@ -93,8 +20,8 @@ export default function ShopsPage() {
   useEffect(() => {
     // Simulate fetching shops
     const timer = setTimeout(() => {
-      setShops(mockShops);
-      setFilteredShops(mockShops); // Initially show all shops
+      setShops(mockShopsArray);
+      setFilteredShops(mockShopsArray); // Initially show all shops
       setIsLoading(false);
     }, 1000);
     return () => clearTimeout(timer);
@@ -107,7 +34,8 @@ export default function ShopsPage() {
     let tempFilteredShops = [...shops];
     if (newFilters.searchTerm) {
       tempFilteredShops = tempFilteredShops.filter(shop =>
-        shop.name.toLowerCase().includes(newFilters.searchTerm.toLowerCase())
+        shop.name.toLowerCase().includes(newFilters.searchTerm.toLowerCase()) ||
+        (shop.description && shop.description.toLowerCase().includes(newFilters.searchTerm.toLowerCase()))
       );
     }
     if (newFilters.location) {
