@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CheckCircle, XCircle, Clock, CalendarDays, User, MoreHorizontal, AlertTriangle, PackageSearch } from "lucide-react";
+import { CheckCircle, XCircle, Clock, CalendarDays, User, MoreHorizontal, AlertTriangle, PackageSearch, History } from "lucide-react"; // Added History
 import type { Booking } from "@/lib/types";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -43,7 +43,12 @@ export default function ManageBookingsPage() {
       // MOCK: Filter bookings for the shop owned by this shopkeeper
       // In a real app, this would be a Firestore query: where("shopId", "==", user.ownedShopId)
       const shopBookings = mockShopBookingsForShopkeeper.filter(b => b.shopId === mockShopkeeperOwnedShopId);
-      shopBookings.sort((a,b) => a.startTime.getTime() - b.startTime.getTime());
+      shopBookings.sort((a,b) => {
+        // Sort pending first, then by time
+        if (a.status === 'pending' && b.status !== 'pending') return -1;
+        if (a.status !== 'pending' && b.status === 'pending') return 1;
+        return a.startTime.getTime() - b.startTime.getTime();
+      });
       setBookings(shopBookings);
       setIsLoadingBookings(false);
     }
@@ -53,6 +58,12 @@ export default function ManageBookingsPage() {
     setBookings(prev => prev.map(b => 
       b.id === bookingId ? { ...b, status: newStatus, cancellationReason: newStatus.includes('cancel') ? reason || "Cancelled by shop" : undefined } : b
     ));
+    // Also update the shared mockShopBookingsForShopkeeper array
+    const indexInMock = mockShopBookingsForShopkeeper.findIndex(b => b.id === bookingId);
+    if (indexInMock !== -1) {
+      mockShopBookingsForShopkeeper[indexInMock].status = newStatus;
+      mockShopBookingsForShopkeeper[indexInMock].cancellationReason = newStatus.includes('cancel') ? reason || "Cancelled by shop" : undefined;
+    }
     toast({ title: "Booking Updated", description: `Booking ${bookingId} status set to ${newStatus}. (Mocked)` });
     setDialogState({ open: false, bookingId: null, action: null });
   };
@@ -125,6 +136,11 @@ export default function ManageBookingsPage() {
                             'bg-gray-100 text-gray-700'}`}>
                           {booking.status.replace(/_/g, ' ').toUpperCase()}
                         </span>
+                        {booking.cancellationReason && (
+                            <p className="text-xs text-muted-foreground italic mt-1 max-w-[150px] truncate" title={booking.cancellationReason}>
+                                Reason: {booking.cancellationReason}
+                            </p>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">${booking.totalPrice.toFixed(2)}</TableCell>
                       <TableCell className="text-center">
@@ -181,7 +197,13 @@ export default function ManageBookingsPage() {
             <AlertDialogAction 
               onClick={() => {
                 if (dialogState.bookingId && dialogState.action) {
-                  const reason = dialogState.action === 'cancel' ? prompt(`Enter reason for ${bookings.find(b => b.id === dialogState.bookingId)?.status === 'pending' ? 'rejection' : 'cancellation'} (optional):`) : undefined;
+                  const bookingBeingActioned = bookings.find(b => b.id === dialogState.bookingId);
+                  const actionVerb = bookingBeingActioned?.status === 'pending' && dialogState.action === 'cancel' ? 'rejection' : 'cancellation';
+                  
+                  let reason: string | null = null;
+                  if (dialogState.action === 'cancel') {
+                    reason = prompt(`Enter reason for ${actionVerb} (optional):`);
+                  }
                   handleUpdateBookingStatus(dialogState.bookingId, dialogState.action === 'confirm' ? 'confirmed' : 'cancelled_by_shop', reason || undefined);
                 }
               }}
@@ -195,3 +217,5 @@ export default function ManageBookingsPage() {
     </div>
   );
 }
+
+    

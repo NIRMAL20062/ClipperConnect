@@ -64,16 +64,26 @@ export default function UserDashboardPage() {
 
   const handleCancelBooking = async (bookingId: string) => {
     const bookingToCancel = bookings.find(b => b.id === bookingId);
-    if (bookingToCancel && bookingToCancel.startTime < new Date()) {
-        toast({ title: "Cannot Cancel", description: "Past appointments cannot be cancelled.", variant: "destructive" });
-        return;
-    }
-    if (bookingToCancel && (bookingToCancel.startTime.getTime() - new Date().getTime()) < 24 * 60 * 60 * 1000) {
+    if (!bookingToCancel) return;
+
+    // In a real application, you'd typically have rules here, e.g.,
+    // appointments cannot be cancelled less than 24 hours in advance.
+    // For this mock, we'll allow cancellation of any upcoming confirmed booking.
+    /*
+    if ((bookingToCancel.startTime.getTime() - new Date().getTime()) < 24 * 60 * 60 * 1000) { // 24 hours
         toast({ title: "Cancellation Period Expired", description: "Appointments cannot be cancelled less than 24 hours in advance.", variant: "destructive" });
         return;
     }
+    */
 
-    setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'cancelled_by_user' } : b));
+    setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'cancelled_by_user', cancellationReason: "Cancelled by user" } : b));
+    // Also update the shared mockUserBookings array
+    const indexInMock = mockUserBookings.findIndex(b => b.id === bookingId);
+    if (indexInMock !== -1) {
+      mockUserBookings[indexInMock].status = 'cancelled_by_user';
+      mockUserBookings[indexInMock].cancellationReason = "Cancelled by user";
+    }
+
     toast({ title: "Booking Cancelled", description: `Booking ID ${bookingId} has been cancelled. (Mocked)` });
   };
 
@@ -86,7 +96,8 @@ export default function UserDashboardPage() {
   }
 
   const upcomingBookings = bookings.filter(b => (b.status === 'confirmed' || b.status === 'pending') && b.startTime > new Date());
-  const pastBookings = bookings.filter(b => b.status === 'completed' || b.status.includes('cancel') || (b.status === 'confirmed' && b.startTime <= new Date()));
+  const pastBookings = bookings.filter(b => b.status === 'completed' || b.status.includes('cancel') || ((b.status === 'confirmed' || b.status === 'pending') && b.startTime <= new Date()));
+
 
   return (
     <div className="space-y-8">
@@ -104,8 +115,8 @@ export default function UserDashboardPage() {
 
       <Tabs defaultValue="upcoming" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="upcoming"><CalendarCheck className="mr-2 h-4 w-4 inline-block"/>Upcoming Appointments</TabsTrigger>
-          <TabsTrigger value="history"><History className="mr-2 h-4 w-4 inline-block"/>Booking History</TabsTrigger>
+          <TabsTrigger value="upcoming"><CalendarCheck className="mr-2 h-4 w-4 inline-block"/>Upcoming Appointments ({upcomingBookings.length})</TabsTrigger>
+          <TabsTrigger value="history"><History className="mr-2 h-4 w-4 inline-block"/>Booking History ({pastBookings.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="upcoming">
           <BookingList bookings={upcomingBookings} onCancel={handleCancelBooking} isUpcoming={true} />
@@ -185,6 +196,9 @@ function BookingList({ bookings, onCancel, isUpcoming }: BookingListProps) {
                   <span>{shopLocation.address}</span>
                 </div>
               )}
+               {booking.status.includes('cancelled') && booking.cancellationReason &&(
+                 <p className="text-xs text-muted-foreground italic pt-1">Reason: {booking.cancellationReason}</p>
+              )}
             </CardContent>
             <CardFooter className="flex flex-wrap justify-end gap-2 pt-3">
               {shopLocation && (
@@ -194,41 +208,51 @@ function BookingList({ bookings, onCancel, isUpcoming }: BookingListProps) {
                     </a>
                  </Button>
               )}
-              {isUpcoming && booking.status === 'confirmed' && (
+              {isUpcoming && (booking.status === 'confirmed' || booking.status === 'pending') && (
                 <>
                  <Button variant="outline" size="sm" asChild>
                     <a href={generateGoogleCalendarLink(booking)} target="_blank" rel="noopener noreferrer">
                         <CalendarPlus className="mr-2 h-3 w-3" /> Add to Calendar
                     </a>
                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="sm">
-                        <AlertTriangle className="mr-2 h-3 w-3" /> Cancel
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure you want to cancel?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This action cannot be undone. Your appointment for {booking.serviceName} on {format(booking.startTime, "PPP 'at' p")} will be cancelled.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Keep Appointment</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => onCancel(booking.id)} className="bg-destructive hover:bg-destructive/90">
-                          Yes, Cancel Booking
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                 { booking.status === 'confirmed' && /* Only show cancel for confirmed, pending is handled by shop */ (
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm">
+                            <AlertTriangle className="mr-2 h-3 w-3" /> Cancel
+                        </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure you want to cancel?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                            This action cannot be undone. Your appointment for {booking.serviceName} on {format(booking.startTime, "PPP 'at' p")} will be cancelled.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Keep Appointment</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => onCancel(booking.id)} className="bg-destructive hover:bg-destructive/90">
+                            Yes, Cancel Booking
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                  )}
                 </>
               )}
-              {booking.status.includes('cancelled') && (
+              {booking.status.includes('cancelled_by_user') && (
                  <div className="w-full text-sm text-muted-foreground italic flex items-center">
-                     This booking was cancelled.
+                     This booking was cancelled by you.
                      <Button variant="link" asChild className="ml-1 p-0 h-auto">
                         <Link href={`/shops/${booking.shopId}`}>Rebook at {booking.shopName || "Shop"}</Link>
+                     </Button>
+                 </div>
+              )}
+               {booking.status.includes('cancelled_by_shop') && (
+                 <div className="w-full text-sm text-destructive italic flex items-center">
+                     This booking was cancelled by the shop.
+                     <Button variant="link" asChild className="ml-1 p-0 h-auto">
+                        <Link href="/shops">Find another shop</Link>
                      </Button>
                  </div>
               )}
@@ -246,3 +270,5 @@ function BookingList({ bookings, onCancel, isUpcoming }: BookingListProps) {
     </div>
   );
 }
+
+    
