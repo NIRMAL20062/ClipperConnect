@@ -9,50 +9,44 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { User, Edit3, PlusCircle, Trash2, Save, UploadCloud } from "lucide-react";
 import { useState, useEffect, type ChangeEvent } from "react";
-import type { UserProfile as AuthUserProfile, UserAddress } from "@/lib/types";
+import type { UserProfile as AuthUserProfileFromTypes, UserAddress, UserProfileUpdateData } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { mockUserAddresses } from "@/lib/mock-data"; // Use centralized mock data
+import { mockUserAddresses } from "@/lib/mock-data"; 
+import Link from "next/link";
 
-interface UserProfileData extends AuthUserProfile {
-  // Add any fields not in AuthUserProfile that are specific to Firestore profile
-}
 
 export default function ProfilePage() {
-  const { user: authUser, loading: authLoading } = useAuth();
+  const { user: authUser, loading: authLoading, updateUserProfileInContext } = useAuth();
   const { toast } = useToast();
-  const [profile, setProfile] = useState<Partial<UserProfileData>>({});
+  
+  // Local state for form editing, initialized from authUser
+  const [displayName, setDisplayName] = useState("");
+  const [preferredBarber, setPreferredBarber] = useState("");
   const [addresses, setAddresses] = useState<UserAddress[]>([]);
   const [newAddress, setNewAddress] = useState<Partial<UserAddress>>({ street: "", city: "", state: "", zipCode: "" });
+  
   const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
-  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null); // For preview and potential upload
+  
   const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false); // Renamed from isLoading to avoid confusion
+  const [isSaving, setIsSaving] = useState(false);
   const [isPageLoading, setIsPageLoading] = useState(true);
 
 
   useEffect(() => {
     if (authUser) {
       setIsPageLoading(true);
-      // MOCK IMPLEMENTATION:
-      const mockProfile: UserProfileData = {
-        ...authUser,
-        displayName: authUser.displayName || "Valued Customer",
-        preferredBarber: authUser.preferredBarber || "Any Available",
-        addresses: authUser.addresses && authUser.addresses.length > 0 ? authUser.addresses : mockUserAddresses,
-      };
-      setProfile(mockProfile);
-      setAddresses(mockProfile.addresses || []);
-      setProfileImageUrl(mockProfile.photoURL || authUser.photoURL);
+      setDisplayName(authUser.displayName || "");
+      setPreferredBarber(authUser.preferredBarber || "");
+      // Use addresses from authUser if available, otherwise default to mockUserAddresses for new profiles or as fallback
+      setAddresses(authUser.addresses && authUser.addresses.length > 0 ? authUser.addresses : []);
+      setProfileImageUrl(authUser.photoURL || null); // Use photoURL from authUser
       setIsPageLoading(false);
-    } else if (!authLoading) { // If not loading and no authUser, stop page loading
+    } else if (!authLoading) {
         setIsPageLoading(false);
     }
   }, [authUser, authLoading]);
 
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setProfile(prev => ({ ...prev, [name]: value }));
-  };
 
   const handleAddressChange = (index: number, e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -68,7 +62,7 @@ export default function ProfilePage() {
 
   const addAddress = () => {
     if (newAddress.street && newAddress.city && newAddress.state && newAddress.zipCode) {
-      const newAddrWithId = { ...newAddress, id: Date.now().toString() } as UserAddress;
+      const newAddrWithId = { ...newAddress, id: `addr-${Date.now().toString()}` } as UserAddress;
       setAddresses([...addresses, newAddrWithId]);
       setNewAddress({ street: "", city: "", state: "", zipCode: "" });
     } else {
@@ -83,8 +77,8 @@ export default function ProfilePage() {
   const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setProfileImageFile(file);
-      setProfileImageUrl(URL.createObjectURL(file)); 
+      setProfileImageFile(file); // Store the file itself for potential upload
+      setProfileImageUrl(URL.createObjectURL(file)); // Set temporary blob URL for preview
     }
   };
 
@@ -93,43 +87,32 @@ export default function ProfilePage() {
     if (!authUser) return;
     setIsSaving(true);
 
-    let updatedPhotoURL = profile.photoURL || authUser.photoURL; // Ensure fallback
-
-    if (profileImageFile) {
-        // MOCK: Simulate image upload
-        updatedPhotoURL = profileImageUrl; 
-        toast({ title: "Image Upload Simulated", description: "In a real app, this image would be uploaded to storage." });
-    }
-
-    const updatedProfileData = {
-      ...profile, // existing profile fields
-      uid: authUser.uid,
-      email: authUser.email, // email should not be changed here typically
-      displayName: profile.displayName || authUser.displayName,
-      photoURL: updatedPhotoURL,
+    const updateData: UserProfileUpdateData = {
+      displayName: displayName,
+      preferredBarber: preferredBarber,
       addresses: addresses,
-      preferredBarber: profile.preferredBarber,
-      // Ensure role is preserved from authUser if not directly editable here
-      role: authUser.role, 
     };
 
-    try {
-      // MOCK: Log data
-      console.log("Profile to save (mock):", updatedProfileData);
-      // In a real app, you would update the user document in Firestore here
-      // e.g., await updateDoc(doc(db, "users", authUser.uid), updatedProfileData);
-      // And potentially update Firebase Auth profile if displayName/photoURL changed
-      // e.g., await updateProfile(auth.currentUser, { displayName: updatedProfileData.displayName, photoURL: updatedProfileData.photoURL });
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    // Handle photoURL:
+    // In a real app, if profileImageFile exists, you'd upload it to Firebase Storage first,
+    // get the downloadURL, and then set updateData.photoURL = downloadURL.
+    // For this mock, we'll just pass the current profileImageUrl (which might be a blob URL).
+    // If it's a new blob URL, Firebase Auth update might not persist it effectively without a real upload.
+    // If it's an existing URL from authUser.photoURL and it hasn't changed, we don't need to include it.
+    // If a new image was selected, profileImageUrl holds the blob URL.
+    if (profileImageUrl !== authUser.photoURL) { // Only include if changed or newly set
+        updateData.photoURL = profileImageUrl;
+    }
 
-      setProfile(updatedProfileData); // Update local state with saved data
-      toast({ title: "Profile Updated", description: "Your profile has been successfully updated. (Mocked)" });
+
+    try {
+      await updateUserProfileInContext(updateData);
+      toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
       setIsEditing(false);
+      setProfileImageFile(null); // Clear staged file after successful update
     } catch (error) {
       console.error("Error updating profile:", error);
-      toast({ title: "Update Failed", description: "Could not update your profile. Please try again.", variant: "destructive" });
+      toast({ title: "Update Failed", description: (error as Error).message || "Could not update your profile.", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -164,9 +147,9 @@ export default function ProfilePage() {
           <CardContent className="space-y-8 pt-6">
             <div className="flex flex-col items-center space-y-4">
               <Avatar className="h-32 w-32 border-4 border-primary/50 shadow-md">
-                <AvatarImage src={profileImageUrl || undefined} alt={profile.displayName || "User"} />
+                <AvatarImage src={profileImageUrl || undefined} alt={displayName || "User"} />
                 <AvatarFallback className="text-4xl bg-muted">
-                  {profile.displayName ? profile.displayName.charAt(0).toUpperCase() : <User className="h-16 w-16 text-muted-foreground"/>}
+                  {displayName ? displayName.charAt(0).toUpperCase() : <User className="h-16 w-16 text-muted-foreground"/>}
                 </AvatarFallback>
               </Avatar>
               {isEditing && (
@@ -188,19 +171,19 @@ export default function ProfilePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <Label htmlFor="displayName">Display Name</Label>
-                <Input id="displayName" name="displayName" value={profile.displayName || ""} onChange={handleInputChange} disabled={!isEditing || isSaving} />
+                <Input id="displayName" name="displayName" value={displayName} onChange={(e) => setDisplayName(e.target.value)} disabled={!isEditing || isSaving} />
               </div>
               <div>
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" value={profile.email || ""} disabled />
+                <Input id="email" type="email" value={authUser.email || ""} disabled />
               </div>
               <div>
                 <Label htmlFor="preferredBarber">Preferred Barber</Label>
-                <Input id="preferredBarber" name="preferredBarber" value={profile.preferredBarber || ""} onChange={handleInputChange} disabled={!isEditing || isSaving} placeholder="e.g., John Doe / Any" />
+                <Input id="preferredBarber" name="preferredBarber" value={preferredBarber} onChange={(e) => setPreferredBarber(e.target.value)} disabled={!isEditing || isSaving} placeholder="e.g., John Doe / Any" />
               </div>
                <div>
                 <Label htmlFor="role">Role</Label>
-                <Input id="role" name="role" value={profile.role ? profile.role.charAt(0).toUpperCase() + profile.role.slice(1) : ''} disabled />
+                <Input id="role" name="role" value={authUser.role ? authUser.role.charAt(0).toUpperCase() + authUser.role.slice(1) : ''} disabled />
               </div>
             </div>
             
@@ -268,3 +251,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+

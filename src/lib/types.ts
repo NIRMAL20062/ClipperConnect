@@ -4,13 +4,19 @@ export interface UserProfile {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
-  role: 'user' | 'shopkeeper'; // Role is now mandatory
-  phoneNumber?: string | null; // For phone auth
+  role: 'user' | 'shopkeeper';
+  phoneNumber?: string | null;
   preferredBarber?: string;
   addresses?: UserAddress[];
-  createdAt?: any; // Firestore server timestamp
-  updatedAt?: any; // Firestore server timestamp
-  // Loyalty points, etc.
+  createdAt?: any; 
+  updatedAt?: any; 
+}
+
+export interface UserProfileUpdateData {
+  displayName?: string | null;
+  photoURL?: string | null; // In a real app, this would be the Firebase Storage URL
+  preferredBarber?: string;
+  addresses?: UserAddress[];
 }
 
 export interface UserAddress {
@@ -25,10 +31,10 @@ export interface UserAddress {
 export interface Barbershop {
   id: string;
   name: string;
-  ownerId: string; // UID of the shopkeeper
-  photos?: string[]; // URLs of photos
-  rating?: number; // Average rating
-  priceRange?: string; // e.g., "$", "$$", "$$$"
+  ownerId: string; 
+  photos?: string[]; 
+  rating?: number; 
+  priceRange?: string; 
   location: {
     address: string;
     googleMapsLink?: string;
@@ -36,79 +42,77 @@ export interface Barbershop {
     longitude?: number;
   };
   services: Service[];
-  availability: AvailabilitySlot[]; // Could be more complex
-  description?: string; // Added for more shop details
+  availability: AvailabilitySlot[]; 
+  description?: string; 
 }
 
 export interface Service {
   id: string;
-  name: string; // e.g., Haircut, Facial, Beard Grooming
+  name: string; 
   price: number;
-  durationMinutes: number; // Duration of the service
+  durationMinutes: number; 
   description?: string;
 }
 
-// Updated to be more aligned with shop management needs
 export interface AvailabilitySlot {
-  id: string; // e.g., 'monday', 'tuesday' or a unique ID
+  id: string; 
   day: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday';
-  open: string; // HH:mm format, e.g., "09:00"
-  close: string; // HH:mm format, e.g., "18:00"
-  isAvailable: boolean; // True if open on this day, false if closed
+  open: string; 
+  close: string; 
+  isAvailable: boolean; 
 }
 
 
 export interface Booking {
   id: string;
-  userId: string; // UID of the user
+  userId: string; 
   shopId: string;
   serviceId: string;
-  serviceName: string; // Denormalized for easier display
-  shopName?: string; // Denormalized for easier display on user dashboard
-  barberId?: string; // Optional specific barber
+  serviceName: string; 
+  shopName?: string; 
+  barberId?: string; 
   startTime: Date;
   endTime: Date;
   status: 'pending' | 'confirmed' | 'cancelled_by_user' | 'cancelled_by_shop' | 'completed';
-  paymentId?: string; // Razorpay Payment ID
+  paymentId?: string; 
   totalPrice: number;
   createdAt: Date;
   cancellationReason?: string;
-  userName?: string; // Denormalized for shop bookings display
-  // For user dashboard enhancements:
+  userName?: string; 
   shopLocation?: Barbershop['location'];
   shopGoogleMapsLink?: string;
 }
 
-// For AI Scheduler
 export interface HistoricalBookingEntry {
-  date: string; // YYYY-MM-DD
-  time: string; // HH:MM
+  date: string; 
+  time: string; 
   service: string;
   barber: string;
 }
 
 export interface AvailableTimeSlotEntry {
-  date: string; // YYYY-MM-DD
-  startTime: string; // HH:MM
-  endTime: string; // HH:MM
+  date: string; 
+  startTime: string; 
+  endTime: string; 
 }
 
 export interface CurrentBookingEntry {
-  date: string; // YYYY-MM-DD
-  time: string; // HH:MM
+  date: string; 
+  time: string; 
   service: string;
   barber: string;
 }
 
 export interface AIScheduleInput {
-  historicalBookingData: string; // JSON string of HistoricalBookingEntry[]
-  availableTimeSlots: string; // JSON string of AvailableTimeSlotEntry[]
-  currentBookings: string; // JSON string of CurrentBookingEntry[]
+  historicalBookingData: string; 
+  availableTimeSlots: string; 
+  currentBookings: string; 
 }
 
 export interface AIOptimalTimeSlotsInput {
   barbershopId: string;
   serviceType: string;
-  date: string; // YYYY-MM-DD
+  date: string; 
   preferredTime?: 'morning' | 'afternoon' | 'evening' | 'any';
 }
+

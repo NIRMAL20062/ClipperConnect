@@ -11,13 +11,14 @@ import {
   signOut as firebaseSignOut,
   createUserWithEmailAndPassword as firebaseCreateUserWithEmailAndPassword,
   signInWithEmailAndPassword as firebaseSignInWithEmailAndPassword,
-  sendPasswordResetEmail as firebaseSendPasswordResetEmail, // Import Firebase function
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
+  updateProfile, // Import updateProfile
 } from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp, query, collection, where, getDocs } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp, query, collection, where, getDocs, updateDoc } from "firebase/firestore";
 import type { ReactNode} from "react";
 import { createContext, useContext, useEffect, useState } from "react";
 import { LoadingScreen } from "@/components/common/loading-screen";
-import type { UserProfile } from "@/lib/types";
+import type { UserProfile, UserProfileUpdateData } from "@/lib/types";
 
 const INTENDED_ROLE_LS_KEY = "clipperconnect_intended_role";
 
@@ -27,8 +28,9 @@ interface AuthContextType {
   signInWithGoogle: (intendedRole: UserProfile['role']) => Promise<void>;
   signUpWithEmailAndPasswordApp: (email: string, password: string, intendedRole: UserProfile['role']) => Promise<void>;
   signInWithEmailAndPasswordApp: (email: string, password: string) => Promise<void>;
-  sendPasswordResetEmailApp: (email: string) => Promise<void>; // Added function type
+  sendPasswordResetEmailApp: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
+  updateUserProfileInContext: (data: UserProfileUpdateData) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    setIsClient(true);
+    setIsClient(true); // Set isClient to true once component mounts
 
     const processAuthUser = async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
@@ -56,19 +58,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!intendedRole && !firebaseUser.isAnonymous) {
             console.warn("Intended role not found in localStorage for new user. Defaulting to 'user'. This might happen if the user refreshed during redirect or an error occurred before role was set.");
           }
-
+          
+          // Check if email already exists in Firestore with a different UID (edge case, primarily for Google sign-ins where Firebase Auth user is new but Firestore doc might exist)
           if (firebaseUser.email) {
             const emailQuery = query(collection(db, "users"), where("email", "==", firebaseUser.email));
             const emailQuerySnapshot = await getDocs(emailQuery);
             if (!emailQuerySnapshot.empty && emailQuerySnapshot.docs.some(d => d.id !== firebaseUser.uid)) {
-              console.error(`Critical Error: Email ${firebaseUser.email} is ALREADY associated with another user profile in Firestore (UID: ${emailQuerySnapshot.docs.find(d=>d.id !== firebaseUser.uid)?.id}). Signing out user.`);
-              await firebaseSignOut(auth);
-              setUser(null);
-              localStorage.removeItem(INTENDED_ROLE_LS_KEY);
-              setLoading(false);
-              return;
+                // This email is already tied to another user profile in Firestore.
+                // This can happen if a user first signed up with email/password, then tries Google with same email.
+                // Or, more critically, if there's data inconsistency.
+                // For now, we'll sign out the current Firebase Auth user to prevent overwriting or creating duplicate-email profiles.
+                console.error(`Critical Error: Email ${firebaseUser.email} is ALREADY associated with another user profile in Firestore (UID: ${emailQuerySnapshot.docs.find(d=>d.id !== firebaseUser.uid)?.id}). Signing out user.`);
+                await firebaseSignOut(auth);
+                setUser(null);
+                localStorage.removeItem(INTENDED_ROLE_LS_KEY);
+                setLoading(false);
+                return; // Stop processing to prevent inconsistent state
             }
           }
+
 
           const newUserProfile: UserProfile = {
             uid: firebaseUser.uid,
@@ -95,16 +103,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const handleRedirect = async () => {
         try {
+            setLoading(true); // Start loading before processing redirect
             const result = await getRedirectResult(auth);
-            // If result is null, it means no redirect operation was pending or it was handled.
-            // If result.user exists, onAuthStateChanged will be triggered by Firebase
-            // and processAuthUser will handle profile creation/fetching.
+            // If result.user exists, onAuthStateChanged will be triggered shortly by Firebase,
+            // which will then call processAuthUser.
+            // If result is null (no pending redirect or already handled), 
+            // we still rely on onAuthStateChanged for initial user load.
+            if (!result) { // if no redirect was processed, might need to ensure loading state is handled.
+                setLoading(false); // If no redirect result, turn off loading (onAuthStateChanged will handle further)
+            }
         } catch (error: any) {
             console.error("Error processing redirect result:", error);
             if (error.code === 'auth/account-exists-with-different-credential') {
                 alert("An account already exists with the same email address but a different sign-in method (e.g., Google vs Email). Please sign in using the original method you used for this email.");
             }
-            // Attempt to sign out to clear any inconsistent state if redirect failed badly
             firebaseSignOut(auth).catch(e => console.warn("Sign out attempt during redirect error handling failed:", e));
             setUser(null);
             localStorage.removeItem(INTENDED_ROLE_LS_KEY);
@@ -114,11 +126,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     handleRedirect().finally(() => {
         const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
-          setLoading(true);
+          setLoading(true); // Set loading true when auth state might change
           processAuthUser(fbUser).catch(error => {
-            console.error("Error in onAuthStateChanged's processAuthUser:", error.message);
-            setUser(null);
-            setLoading(false);
+            // Catch errors within processAuthUser to prevent unhandled promise rejections
+            console.error("Error in onAuthStateChanged's processAuthUser:", error);
+            setUser(null); // Ensure user is null on error
+            setLoading(false); // Ensure loading is false on error
           });
         });
         return () => unsubscribe();
@@ -143,6 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUpWithEmailAndPasswordApp = async (email: string, password: string, intendedRole: UserProfile['role']) => {
     setLoading(true);
+    // Check if email already exists in Firestore before attempting Firebase Auth creation
     const emailQuery = query(collection(db, "users"), where("email", "==", email));
     const emailQuerySnapshot = await getDocs(emailQuery);
     if (!emailQuerySnapshot.empty) {
@@ -150,7 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(`The email address ${email} is already registered. Please try logging in or use a different email.`);
     }
 
-    localStorage.setItem(INTENDED_ROLE_LS_KEY, intendedRole);
+    localStorage.setItem(INTENDED_ROLE_LS_KEY, intendedRole); // Store role before Firebase Auth action
     try {
       await firebaseCreateUserWithEmailAndPassword(auth, email, password);
       // onAuthStateChanged will handle profile creation and set user state.
@@ -176,7 +190,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error: any) {
       console.error("Error signing in with email and password:", error); // For developer debugging
       setLoading(false);
-      if (error.code === 'auth/user-not-found' ||
+      if (error.code === 'auth/user-not-found' || 
           error.code === 'auth/wrong-password' ||
           error.code === 'auth/invalid-credential' ||
           error.code === 'auth/invalid-email') {
@@ -190,16 +204,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       await firebaseSendPasswordResetEmail(auth, email);
-      // setLoading(false) will be handled by the calling component after success toast
     } catch (error: any) {
       console.error("Error sending password reset email:", error);
-      setLoading(false);
-      // Firebase errors for sendPasswordResetEmail are often generic for security
-      // (e.g., auth/user-not-found is not explicitly thrown to prevent email enumeration)
-      // So, we throw a generic message.
       throw new Error(error.message || "Failed to send password reset email. Please try again.");
     } finally {
-        setLoading(false); // Ensure loading is false in all cases for this specific action
+        setLoading(false); 
     }
   };
 
@@ -216,9 +225,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateUserProfileInContext = async (data: UserProfileUpdateData) => {
+    if (!auth.currentUser) {
+      throw new Error("No authenticated user found to update.");
+    }
+    setLoading(true);
+    try {
+      const userDocRef = doc(db, "users", auth.currentUser.uid);
+      const firestoreUpdatePayload: any = { updatedAt: serverTimestamp() };
+      const firebaseAuthUpdatePayload: { displayName?: string | null; photoURL?: string | null } = {};
+
+      if (data.displayName !== undefined) {
+        firestoreUpdatePayload.displayName = data.displayName;
+        firebaseAuthUpdatePayload.displayName = data.displayName;
+      }
+      if (data.photoURL !== undefined) {
+        // In a real app, data.photoURL would be a Firebase Storage URL
+        // For this mock, we're assuming it's the URL to set (could be a blob URL if image was just selected)
+        firestoreUpdatePayload.photoURL = data.photoURL;
+        firebaseAuthUpdatePayload.photoURL = data.photoURL;
+      }
+      if (data.preferredBarber !== undefined) {
+        firestoreUpdatePayload.preferredBarber = data.preferredBarber;
+      }
+      if (data.addresses !== undefined) {
+        firestoreUpdatePayload.addresses = data.addresses;
+      }
+
+      // Update Firestore document
+      await updateDoc(userDocRef, firestoreUpdatePayload);
+
+      // Update Firebase Auth profile (displayName, photoURL)
+      if (Object.keys(firebaseAuthUpdatePayload).length > 0) {
+        await updateProfile(auth.currentUser, firebaseAuthUpdatePayload);
+      }
+
+      // Re-fetch user from Firestore to update context state accurately
+      const updatedUserDocSnap = await getDoc(userDocRef);
+      if (updatedUserDocSnap.exists()) {
+        setUser(updatedUserDocSnap.data() as UserProfile);
+      } else {
+        // This case should ideally not be reached if updateDoc was successful
+        console.error("User document not found after update. This indicates a potential issue.");
+        setUser(null); // Or handle error more gracefully
+      }
+
+    } catch (error) {
+      console.error("Error updating user profile in context:", error);
+      // Re-throw the error so the calling component (ProfilePage) can handle it (e.g., show a toast)
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signUpWithEmailAndPasswordApp, signInWithEmailAndPasswordApp, sendPasswordResetEmailApp, signOut }}>
-      {isClient && loading && !user && <LoadingScreen />}
+    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signUpWithEmailAndPasswordApp, signInWithEmailAndPasswordApp, sendPasswordResetEmailApp, signOut, updateUserProfileInContext }}>
+      {isClient && loading && !user && <LoadingScreen />} 
       {children}
     </AuthContext.Provider>
   );
