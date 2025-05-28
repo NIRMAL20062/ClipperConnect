@@ -1,12 +1,13 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, ChangeEvent } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/auth-context";
 import { Barbershop, Service, Booking } from "@/lib/types";
@@ -14,49 +15,6 @@ import { AlertCircle, CalendarDays, Clock, Scissors, User as UserIcon, CheckCirc
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { mockShopsArray, mockUserBookings } from "@/lib/mock-data"; // Use centralized mock data
-
-// Generate mock time slots for a given date
-const generateMockTimeSlots = (date: Date | undefined, serviceDuration: number): string[] => {
-  if (!date || serviceDuration <=0) return [];
-  const slots: string[] = [];
-  const dayOfWeek = date.getDay(); // Sunday - 0, Monday - 1, ..., Saturday - 6
-
-  // Example: closed on Sunday (if shop isn't configured to be open)
-  // This should ideally come from shop.availability
-  if (dayOfWeek === 0) return []; 
-
-  let startHour = 9; // 9 AM
-  const endHour = 17; // 5 PM
-
-  // Adjust start time for Saturday
-  if (dayOfWeek === 6) startHour = 10;
-
-
-  let currentTime = new Date(date);
-  currentTime.setHours(startHour, 0, 0, 0);
-
-  const endTimeLimit = new Date(date);
-  endTimeLimit.setHours(endHour, 0, 0, 0);
-  
-  while(currentTime < endTimeLimit) {
-    const slotEnd = new Date(currentTime.getTime() + serviceDuration * 60000);
-    if(slotEnd > endTimeLimit) break; // Ensure slot does not exceed shop hours
-
-    // Skip lunch break e.g. 1 PM to 2 PM
-    if (currentTime.getHours() === 13) { // 1 PM
-        currentTime.setHours(14,0,0,0); // Resume at 2 PM
-        if(currentTime >= endTimeLimit) break;
-    }
-    
-    slots.push(format(currentTime, "HH:mm"));
-
-    // Usually advance by service duration, but for simplicity, let's advance by fixed intervals for more options
-    // For actual app, this should be more sophisticated based on barber availability and service duration
-    const interval = Math.max(30, Math.ceil(serviceDuration / 30) * 15); // e.g., 30, 15 for shorter services
-    currentTime.setMinutes(currentTime.getMinutes() + interval); 
-  }
-  return slots;
-};
 
 
 export default function BookingPage() {
@@ -73,7 +31,7 @@ export default function BookingPage() {
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedTime, setSelectedTime] = useState<string | undefined>(undefined);
-  const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
+  // Removed availableTimeSlots state
   const [isLoading, setIsLoading] = useState(true);
   const [isBooking, setIsBooking] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
@@ -93,19 +51,18 @@ export default function BookingPage() {
     }
   }, [shopId, preselectedServiceId]);
 
+  // Effect to reset time if date or service changes
   useEffect(() => {
-    if (selectedDate && selectedService) {
-      const slots = generateMockTimeSlots(selectedDate, selectedService.durationMinutes);
-      setAvailableTimeSlots(slots);
-      setSelectedTime(undefined); 
-    } else {
-      setAvailableTimeSlots([]);
-    }
+    setSelectedTime(undefined);
   }, [selectedDate, selectedService]);
 
   const handleServiceChange = (serviceId: string) => {
     const service = shop?.services.find(s => s.id === serviceId);
     setSelectedService(service || null);
+  };
+
+  const handleTimeChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setSelectedTime(event.target.value);
   };
 
   const handleBooking = async () => {
@@ -119,6 +76,23 @@ export default function BookingPage() {
       return;
     }
 
+    // Basic time validation (e.g., is it in the past relative to the date?)
+    // More complex validation (shop hours, conflicts) would be needed in a real app.
+    const bookingDateTimeString = `${format(selectedDate, "yyyy-MM-dd")}T${selectedTime}`;
+    const bookingStartDateTime = new Date(bookingDateTimeString);
+
+    if (isNaN(bookingStartDateTime.getTime())) {
+        toast({ title: "Invalid Time", description: "The selected time is not valid.", variant: "destructive" });
+        return;
+    }
+    
+    // Example: Check if selected time combined with date is in the past (only if date is today)
+    if (format(selectedDate, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd") && bookingStartDateTime < new Date()) {
+      toast({ title: "Invalid Time", description: "Cannot book an appointment in the past.", variant: "destructive" });
+      return;
+    }
+
+
     setIsBooking(true);
     
     const newBooking: Booking = {
@@ -128,17 +102,17 @@ export default function BookingPage() {
         serviceId: selectedService.id,
         serviceName: selectedService.name,
         shopName: shop!.name, 
-        startTime: new Date(`${format(selectedDate, "yyyy-MM-dd")}T${selectedTime}`),
-        endTime: new Date(new Date(`${format(selectedDate, "yyyy-MM-dd")}T${selectedTime}`).getTime() + selectedService.durationMinutes * 60000),
-        status: "confirmed", // Mocking as confirmed directly for simplicity now
+        startTime: bookingStartDateTime,
+        endTime: new Date(bookingStartDateTime.getTime() + selectedService.durationMinutes * 60000),
+        status: "confirmed", 
         totalPrice: selectedService.price,
         createdAt: new Date(),
         shopLocation: shop!.location, 
         shopGoogleMapsLink: shop!.location.googleMapsLink, 
     };
     
+    // Simulate API call
     setTimeout(() => {
-      // Add this booking to mockUserBookings in mock-data.ts
       mockUserBookings.push(newBooking);
 
       toast({ 
@@ -226,24 +200,21 @@ export default function BookingPage() {
                   />
                 </div>
 
-                {selectedDate && availableTimeSlots.length > 0 && (
+                {selectedDate && (
                   <div>
                     <Label htmlFor="time" className="flex items-center mb-1 text-base"><Clock className="mr-2 h-5 w-5 text-primary"/> Time</Label>
-                    <Select value={selectedTime} onValueChange={setSelectedTime}>
-                      <SelectTrigger id="time" className="text-base py-3">
-                        <SelectValue placeholder="Select a time slot" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableTimeSlots.map(slot => (
-                          <SelectItem key={slot} value={slot} className="text-base py-2">{slot}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Input
+                      id="time"
+                      type="time"
+                      value={selectedTime || ""}
+                      onChange={handleTimeChange}
+                      className="text-base py-3"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Please ensure the time is within shop hours and allows for your service duration.
+                    </p>
                   </div>
                 )}
-                 {selectedDate && availableTimeSlots.length === 0 && selectedService && (
-                    <p className="text-sm text-muted-foreground italic p-3 bg-muted rounded-md">No available slots for this service on the selected date. Please try another date or service.</p>
-                 )}
               </>
             )}
           </div>
