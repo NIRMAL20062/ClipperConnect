@@ -6,10 +6,10 @@ import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarCheck, History, PlusCircle, MapPin, CalendarPlus, AlertTriangle, ExternalLink } from "lucide-react";
-import type { Booking } from "@/lib/types"; // Removed Barbershop as it's not directly used here
+import { CalendarCheck, History, PlusCircle, MapPin, CalendarPlus, AlertTriangle, ExternalLink, Sparkles, ShoppingBag, ThumbsUp } from "lucide-react";
+import type { Booking, RecommendedShopInfo } from "@/lib/types";
 import Link from "next/link";
-import { format, formatISO } from "date-fns"; // Removed addMinutesFns as it's not used
+import { format, formatISO, parse } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -22,7 +22,19 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { mockUserBookings, mockShopsArray } from "@/lib/mock-data"; // Using centralized mock data
+import { mockUserBookings, mockShopsArray } from "@/lib/mock-data";
+import { recommendShopsForUser, type RecommendShopsOutput } from "@/ai/flows/recommend-shops-flow";
+
+function formatDisplayTime(timeStr: string): string {
+  if (!timeStr || !timeStr.includes(':')) return "N/A";
+  try {
+    const date = parse(timeStr, "HH:mm", new Date());
+    return format(date, "p"); // e.g., 4:30 PM
+  } catch (error) {
+    console.warn("Error formatting display time:", timeStr, error);
+    return timeStr;
+  }
+}
 
 export default function UserDashboardPage() {
   const { user, loading } = useAuth();
@@ -30,12 +42,16 @@ export default function UserDashboardPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isLoadingBookings, setIsLoadingBookings] = useState(true);
 
+  const [recommendations, setRecommendations] = useState<RecommendShopsOutput | null>(null);
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
+  const [serviceInterestForRecs, setServiceInterestForRecs] = useState("");
+
+
   useEffect(() => {
     if (user) {
       setIsLoadingBookings(true);
-      // MOCK: Filter mock bookings for the current user and enrich with shop location
       const userBookingsWithShopDetails = mockUserBookings
-        .filter(b => b.userId === (user.uid || "user1")) // Fallback to "user1" for mock data if UID isn't set
+        .filter(b => b.userId === (user.uid || "user1")) 
         .map(booking => {
           const shopDetails = mockShopsArray.find(shop => shop.id === booking.shopId);
           return {
@@ -51,9 +67,7 @@ export default function UserDashboardPage() {
         const bIsUpcoming = b.startTime > now && (b.status === 'confirmed' || b.status === 'pending');
         if (aIsUpcoming && !bIsUpcoming) return -1;
         if (!aIsUpcoming && bIsUpcoming) return 1;
-        // For upcoming, sort by earliest first
         if (aIsUpcoming && bIsUpcoming) return a.startTime.getTime() - b.startTime.getTime();
-        // For past/cancelled, sort by most recent first
         return b.startTime.getTime() - a.startTime.getTime(); 
       });
 
@@ -63,10 +77,6 @@ export default function UserDashboardPage() {
   }, [user]);
 
   const handleCancelBooking = async (bookingId: string) => {
-    // For this mock, we allow cancellation of any upcoming confirmed booking without time restriction.
-    // In a real application, you'd typically have rules here, e.g.,
-    // appointments cannot be cancelled less than 24 hours in advance.
-
     setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'cancelled_by_user', cancellationReason: "Cancelled by user" } : b));
     
     const indexInMock = mockUserBookings.findIndex(b => b.id === bookingId);
@@ -77,6 +87,23 @@ export default function UserDashboardPage() {
 
     toast({ title: "Booking Cancelled", description: `Booking ID ${bookingId} has been cancelled. (Mocked)` });
   };
+
+  const fetchRecommendations = async () => {
+    if (!user) return;
+    setIsLoadingRecommendations(true);
+    setRecommendations(null);
+    try {
+      const result = await recommendShopsForUser({ userId: user.uid, serviceInterest: serviceInterestForRecs || undefined });
+      setRecommendations(result);
+      toast({ title: "Recommendations Ready!", description: "Here are some shops you might like." });
+    } catch (error) {
+      console.error("Error fetching recommendations:", error);
+      toast({ title: "Recommendation Failed", description: (error as Error).message || "Could not fetch recommendations.", variant: "destructive" });
+    } finally {
+      setIsLoadingRecommendations(false);
+    }
+  };
+
 
   if (loading || isLoadingBookings) {
     return <div className="text-center py-10">Loading dashboard...</div>;
@@ -103,6 +130,48 @@ export default function UserDashboardPage() {
           </Link>
         </Button>
       </div>
+
+      {/* AI Recommendations Section */}
+      <Card className="shadow-lg border-accent">
+        <CardHeader>
+          <CardTitle className="flex items-center text-2xl"><Sparkles className="mr-2 h-6 w-6 text-accent" /> Personalized Recommendations</CardTitle>
+          <CardDescription>Discover new barbershops tailored to your preferences. Enter a service you're interested in (optional).</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+           {/* Removed Input for serviceInterestForRecs, as it's not being used effectively by the simplified mock prompt */}
+          <Button onClick={fetchRecommendations} disabled={isLoadingRecommendations} className="bg-accent hover:bg-accent/90 text-accent-foreground">
+            {isLoadingRecommendations ? "Thinking..." : <><ThumbsUp className="mr-2 h-4 w-4" /> Get My Shop Recommendations</>}
+          </Button>
+          {recommendations && recommendations.recommendations.length > 0 && (
+            <div className="mt-4 space-y-3">
+              <h3 className="font-semibold text-lg">{recommendations.overallReasoning}</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {recommendations.recommendations.map(rec => (
+                  <Card key={rec.shopId} className="bg-muted/50">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xl">{rec.shopName}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground italic mb-2">{rec.reason}</p>
+                    </CardContent>
+                    <CardFooter>
+                       <Button variant="outline" size="sm" asChild>
+                        <Link href={`/shops/${rec.shopId}`}>
+                            <ShoppingBag className="mr-2 h-4 w-4"/> View Shop
+                        </Link>
+                       </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+          {recommendations && recommendations.recommendations.length === 0 && !isLoadingRecommendations && (
+            <p className="text-muted-foreground mt-4">No specific recommendations found at this time. Try exploring all shops!</p>
+          )}
+        </CardContent>
+      </Card>
+
 
       <Tabs defaultValue="upcoming" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
@@ -177,7 +246,7 @@ function BookingList({ bookings, onCancel, isUpcoming }: BookingListProps) {
             </CardHeader>
             <CardContent className="space-y-1.5">
               <p><strong>Date:</strong> {format(booking.startTime, "EEEE, MMMM d, yyyy")}</p>
-              <p><strong>Time:</strong> {format(booking.startTime, "p")} - {format(booking.endTime, "p")}</p>
+              <p><strong>Time:</strong> {formatDisplayTime(format(booking.startTime, "HH:mm"))} - {formatDisplayTime(format(booking.endTime, "HH:mm"))}</p>
               <p><strong>Price:</strong> ${booking.totalPrice.toFixed(2)}</p>
               {shopLocation && (
                 <div className="flex items-start text-sm text-muted-foreground pt-1">
@@ -185,7 +254,7 @@ function BookingList({ bookings, onCancel, isUpcoming }: BookingListProps) {
                   <span>{shopLocation.address}</span>
                 </div>
               )}
-               {booking.status.includes('cancelled') && booking.cancellationReason &&(
+               {booking.cancellationReason &&(
                  <p className="text-xs text-muted-foreground italic pt-1">Reason: {booking.cancellationReason}</p>
               )}
             </CardContent>
@@ -197,14 +266,15 @@ function BookingList({ bookings, onCancel, isUpcoming }: BookingListProps) {
                     </a>
                  </Button>
               )}
-              {isUpcoming && ( // Simplified condition: if it's upcoming, the status is already filtered
+              {isUpcoming && (booking.status === 'confirmed' || booking.status === 'pending') &&
+                (
                 <>
                  <Button variant="outline" size="sm" asChild>
                     <a href={generateGoogleCalendarLink(booking)} target="_blank" rel="noopener noreferrer">
                         <CalendarPlus className="mr-2 h-3 w-3" /> Add to Calendar
                     </a>
                  </Button>
-                 { booking.status === 'confirmed' && /* Only show cancel for confirmed, pending is handled by shop */ (
+                 { booking.status === 'confirmed' && (
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                         <Button variant="destructive" size="sm">

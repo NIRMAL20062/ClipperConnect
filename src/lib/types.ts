@@ -113,22 +113,38 @@ export interface AIOptimalTimeSlotsInput {
   barbershopId: string;
   serviceType: string;
   date: string; 
-  preferredTime?: string; // Changed from union type to string for HH:mm format
+  preferredTime?: string; // HH:mm format
 }
 
 export interface ServiceRequest {
   id: string;
-  userId: string; // ID of the user making the request
-  userName: string; // Name of the user
-  userPhotoUrl?: string; // Optional photo of the user
-  serviceDescription: string; // What the user is looking for, e.g., "Men's haircut"
-  requestedDate: Date; // Preferred date
-  preferredTime: string; // Changed from union type to string for HH:mm format
-  notes?: string; // Any additional notes from the user
-  status: 'pending' | 'accepted' | 'declined' | 'completed'; // Status of the request
-  createdAt: Date; // Timestamp of when the request was made
-  acceptedByShopId?: string; // ID of the shop that accepted (if any)
-  acceptedByShopName?: string; // Name of the shop that accepted (if any)
-  // We could add location preferences here in a real app (e.g., user's current location or desired area)
+  userId: string; 
+  userName: string; 
+  userPhotoUrl?: string; 
+  serviceDescription: string; 
+  requestedDate: Date; 
+  preferredTime: string; // HH:mm format
+  notes?: string; 
+  status: 'pending' | 'accepted' | 'declined' | 'completed'; 
+  createdAt: Date; 
+  acceptedByShopId?: string; 
+  acceptedByShopName?: string; 
 }
 
+// Types for Personalized Shop Recommendations AI Flow
+export interface RecommendShopsInput {
+  userId: string; // For future use with actual user preferences
+  serviceInterest?: string; // e.g., "Classic Haircut", "Beard Trim"
+  // In a real app, you might include location, past booking history, explicit preferences, etc.
+}
+
+export interface RecommendedShopInfo {
+  shopId: string;
+  shopName: string;
+  reason: string; // Why this shop is recommended
+}
+
+export interface RecommendShopsOutput {
+  recommendations: RecommendedShopInfo[];
+  overallReasoning: string; // A summary of why these shops are good choices
+}
