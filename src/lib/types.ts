@@ -113,7 +113,7 @@ export interface AIOptimalTimeSlotsInput {
   barbershopId: string;
   serviceType: string;
   date: string; 
-  preferredTime?: 'morning' | 'afternoon' | 'evening' | 'any';
+  preferredTime?: string; // Changed from union type to string for HH:mm format
 }
 
 export interface ServiceRequest {
@@ -123,7 +123,7 @@ export interface ServiceRequest {
   userPhotoUrl?: string; // Optional photo of the user
   serviceDescription: string; // What the user is looking for, e.g., "Men's haircut"
   requestedDate: Date; // Preferred date
-  preferredTime: 'morning' | 'afternoon' | 'evening' | 'any'; // Preferred time slot
+  preferredTime: string; // Changed from union type to string for HH:mm format
   notes?: string; // Any additional notes from the user
   status: 'pending' | 'accepted' | 'declined' | 'completed'; // Status of the request
   createdAt: Date; // Timestamp of when the request was made
@@ -131,3 +131,4 @@ export interface ServiceRequest {
   acceptedByShopName?: string; // Name of the shop that accepted (if any)
   // We could add location preferences here in a real app (e.g., user's current location or desired area)
 }
+

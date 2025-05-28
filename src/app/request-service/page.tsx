@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input"; // Added Input
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 import { BellRing, CalendarDays, Clock, Edit3 } from "lucide-react";
@@ -21,7 +21,7 @@ export default function RequestServicePage() {
 
   const [serviceDescription, setServiceDescription] = useState("");
   const [requestedDate, setRequestedDate] = useState<Date | undefined>(new Date());
-  const [preferredTime, setPreferredTime] = useState<string | undefined>(undefined);
+  const [preferredTime, setPreferredTime] = useState<string>(""); // Changed to string for direct time input
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -42,10 +42,14 @@ export default function RequestServicePage() {
     // to be broadcasted to shopkeepers.
     console.log("Mock Service Request:", {
       userId: user.uid,
+      userName: user.displayName || "Anonymous",
+      userPhotoUrl: user.photoURL || undefined,
       serviceDescription,
       requestedDate: format(requestedDate, "yyyy-MM-dd"),
-      preferredTime,
+      preferredTime, // Will be a string like "14:30"
       notes,
+      status: 'pending',
+      createdAt: new Date(),
     });
 
     // Simulate API call
@@ -60,7 +64,7 @@ export default function RequestServicePage() {
     // Optionally reset form or redirect
     setServiceDescription("");
     setRequestedDate(new Date());
-    setPreferredTime(undefined);
+    setPreferredTime("");
     setNotes("");
     setIsSubmitting(false);
     // router.push('/dashboard/user'); // Or to a page confirming request
@@ -114,17 +118,17 @@ export default function RequestServicePage() {
               <Label htmlFor="preferredTime" className="flex items-center mb-1 text-base">
                 <Clock className="mr-2 h-5 w-5 text-primary" /> Preferred Time
               </Label>
-              <Select value={preferredTime} onValueChange={setPreferredTime}>
-                <SelectTrigger id="preferredTime" className="text-base py-3">
-                  <SelectValue placeholder="Select a preferred time slot" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="morning" className="text-base py-2">Morning (9 AM - 12 PM)</SelectItem>
-                  <SelectItem value="afternoon" className="text-base py-2">Afternoon (12 PM - 5 PM)</SelectItem>
-                  <SelectItem value="evening" className="text-base py-2">Evening (5 PM - 8 PM)</SelectItem>
-                  <SelectItem value="any" className="text-base py-2">Any Time</SelectItem>
-                </SelectContent>
-              </Select>
+              <Input
+                id="preferredTime"
+                type="time"
+                value={preferredTime}
+                onChange={(e) => setPreferredTime(e.target.value)}
+                className="text-base py-3"
+                required
+              />
+               <p className="text-xs text-muted-foreground mt-1">
+                Enter a specific time (e.g., 04:30 PM). Providing a specific time may limit responses.
+              </p>
             </div>
 
             <div>

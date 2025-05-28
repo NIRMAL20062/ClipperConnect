@@ -1,6 +1,6 @@
 
 import type { Barbershop, Booking, UserAddress, AvailabilitySlot, ServiceRequest as MockServiceRequestType } from './types'; // Renamed to avoid conflict with local MockServiceRequest
-import { addDays, addMinutes, subDays, subHours } from 'date-fns'; // Added subHours
+import { addDays, addMinutes, subDays, subHours, format } from 'date-fns'; // Added format and subHours
 
 export const mockUserAddresses: UserAddress[] = [
   {id: "addr1", street: "123 Main St", city: "Anytown", state: "CA", zipCode: "90210", isPrimary: true},
@@ -259,7 +259,7 @@ export const mockServiceRequests: MockServiceRequestType[] = [
     userPhotoUrl: 'https://placehold.co/40x40.png',
     serviceDescription: 'Men\'s Haircut and Beard Trim',
     requestedDate: addDays(new Date(), 2),
-    preferredTime: 'afternoon',
+    preferredTime: '15:30', // Specific time
     notes: 'Looking for a sharp fade.',
     status: 'pending',
     createdAt: new Date(),
@@ -271,7 +271,7 @@ export const mockServiceRequests: MockServiceRequestType[] = [
     userPhotoUrl: 'https://placehold.co/40x40.png',
     serviceDescription: 'Standard Haircut, needs to be quick!',
     requestedDate: addDays(new Date(), 1),
-    preferredTime: 'morning',
+    preferredTime: '10:00', // Specific time
     notes: 'Available anytime before noon. Have an important meeting.',
     status: 'pending',
     createdAt: subHours(new Date(), 2),
@@ -283,7 +283,7 @@ export const mockServiceRequests: MockServiceRequestType[] = [
     userPhotoUrl: 'https://placehold.co/40x40.png',
     serviceDescription: 'Kids Haircut (age 5)',
     requestedDate: addDays(new Date(), 3),
-    preferredTime: 'any',
+    preferredTime: '14:00', // Specific time, example
     status: 'pending',
     createdAt: subHours(new Date(), 5),
   },

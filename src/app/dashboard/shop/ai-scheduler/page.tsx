@@ -14,7 +14,6 @@ import { useToast } from "@/hooks/use-toast";
 import type { AIScheduleInput, AIOptimalTimeSlotsInput } from "@/lib/types";
 import { optimizeBarbershopEfficiency, type OptimizeBarbershopEfficiencyOutput } from "@/ai/flows/optimize-barbershop-efficiency";
 import { suggestOptimalTimeSlots, type SuggestOptimalTimeSlotsOutput } from "@/ai/flows/suggest-optimal-time-slots";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 
 export default function AISchedulerPage() {
@@ -47,9 +46,8 @@ export default function AISchedulerPage() {
   const handleSuggestInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSuggestInput({ ...suggestInput, [e.target.name]: e.target.value });
   };
-  const handleSuggestSelectChange = (name: keyof AIOptimalTimeSlotsInput, value: string) => {
-    setSuggestInput({ ...suggestInput, [name]: value });
-  };
+  
+  // Removed handleSuggestSelectChange as preferredTime is now an Input
 
 
   const handleOptimizeEfficiency = async (e: FormEvent) => {
@@ -195,17 +193,15 @@ export default function AISchedulerPage() {
                 </div>
                 <div>
                   <Label htmlFor="preferredTime">Preferred Time (Optional)</Label>
-                   <Select name="preferredTime" onValueChange={(value) => handleSuggestSelectChange('preferredTime', value)} value={suggestInput.preferredTime}>
-                        <SelectTrigger id="preferredTime">
-                            <SelectValue placeholder="Any time" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="any">Any Time</SelectItem>
-                            <SelectItem value="morning">Morning</SelectItem>
-                            <SelectItem value="afternoon">Afternoon</SelectItem>
-                            <SelectItem value="evening">Evening</SelectItem>
-                        </SelectContent>
-                    </Select>
+                  <Input 
+                    id="preferredTime" 
+                    name="preferredTime" 
+                    type="time" 
+                    value={suggestInput.preferredTime || ""} 
+                    onChange={handleSuggestInputChange} 
+                    className="text-base py-3"
+                  />
+                   <p className="text-xs text-muted-foreground mt-1">Enter a specific time (e.g., 02:30 PM) if you have a preference.</p>
                 </div>
               </CardContent>
               <CardFooter>
