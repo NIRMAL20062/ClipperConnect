@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CalendarCheck, History, PlusCircle, MapPin, CalendarPlus, AlertTriangle, ExternalLink } from "lucide-react";
-import type { Booking, Barbershop } from "@/lib/types";
+import type { Booking } from "@/lib/types"; // Removed Barbershop as it's not directly used here
 import Link from "next/link";
-import { format, formatISO, addMinutes as addMinutesFns } from "date-fns"; // For ISO formatting
+import { format, formatISO } from "date-fns"; // Removed addMinutesFns as it's not used
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -63,21 +63,12 @@ export default function UserDashboardPage() {
   }, [user]);
 
   const handleCancelBooking = async (bookingId: string) => {
-    const bookingToCancel = bookings.find(b => b.id === bookingId);
-    if (!bookingToCancel) return;
-
+    // For this mock, we allow cancellation of any upcoming confirmed booking without time restriction.
     // In a real application, you'd typically have rules here, e.g.,
     // appointments cannot be cancelled less than 24 hours in advance.
-    // For this mock, we'll allow cancellation of any upcoming confirmed booking.
-    /*
-    if ((bookingToCancel.startTime.getTime() - new Date().getTime()) < 24 * 60 * 60 * 1000) { // 24 hours
-        toast({ title: "Cancellation Period Expired", description: "Appointments cannot be cancelled less than 24 hours in advance.", variant: "destructive" });
-        return;
-    }
-    */
 
     setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'cancelled_by_user', cancellationReason: "Cancelled by user" } : b));
-    // Also update the shared mockUserBookings array
+    
     const indexInMock = mockUserBookings.findIndex(b => b.id === bookingId);
     if (indexInMock !== -1) {
       mockUserBookings[indexInMock].status = 'cancelled_by_user';
@@ -153,8 +144,6 @@ function BookingList({ bookings, onCancel, isUpcoming }: BookingListProps) {
 
   const generateGoogleCalendarLink = (booking: Booking) => {
     const title = encodeURIComponent(`${booking.serviceName} at ${booking.shopName}`);
-    // Format for Google Calendar: YYYYMMDDTHHmmSSZ/YYYYMMDDTHHmmSSZ
-    // The dates from JS Date object's toISOString are already in UTC.
     const startTimeISO = formatISO(booking.startTime).replace(/-/g, '').replace(/:/g, '').slice(0, -5) + 'Z';
     const endTimeISO = formatISO(booking.endTime).replace(/-/g, '').replace(/:/g, '').slice(0, -5) + 'Z';
     const dates = `${startTimeISO}/${endTimeISO}`;
@@ -208,7 +197,7 @@ function BookingList({ bookings, onCancel, isUpcoming }: BookingListProps) {
                     </a>
                  </Button>
               )}
-              {isUpcoming && (booking.status === 'confirmed' || booking.status === 'pending') && (
+              {isUpcoming && ( // Simplified condition: if it's upcoming, the status is already filtered
                 <>
                  <Button variant="outline" size="sm" asChild>
                     <a href={generateGoogleCalendarLink(booking)} target="_blank" rel="noopener noreferrer">
@@ -270,5 +259,6 @@ function BookingList({ bookings, onCancel, isUpcoming }: BookingListProps) {
     </div>
   );
 }
+    
 
     
