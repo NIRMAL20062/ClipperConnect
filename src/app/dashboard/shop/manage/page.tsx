@@ -35,7 +35,8 @@ export default function ManageShopPage() {
     if (user && user.role === 'shopkeeper') {
       setIsLoading(true);
       // MOCK: Find the shop owned by this shopkeeper (using mockShopkeeperOwnedShopId)
-      const ownedShop = mockShopsArray.find(shop => shop.id === mockShopkeeperOwnedShopId && shop.ownerId === (user.uid || "shopkeeper1_uid"));
+      // In a real app, this would be a Firestore query for the shop owned by user.uid
+      const ownedShop = mockShopsArray.find(shop => shop.id === mockShopkeeperOwnedShopId /* && shop.ownerId === user.uid */);
       
       if (ownedShop) {
         setShopDetails(ownedShop);
@@ -48,11 +49,14 @@ export default function ManageShopPage() {
         setServices([]);
         setAvailability(JSON.parse(JSON.stringify(defaultAvailability)));
         setImagePreviews([]);
-        toast({title: "New Shop Setup", description: "Fill in your shop details to get started."})
+        // Only show toast if it's genuinely a new setup, not just because mockShopkeeperOwnedShopId didn't match a new shop
+        if (!mockShopsArray.some(s => s.ownerId === user.uid)) {
+            toast({title: "New Shop Setup", description: "Fill in your shop details to get started."});
+        }
       }
       setIsLoading(false);
     }
-  }, [user, toast]); // Added toast to dependency array
+  }, [user, toast]); 
 
   const handleDetailChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -102,7 +106,6 @@ export default function ManageShopPage() {
   const handleImageFilesChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const filesArray = Array.from(e.target.files);
-      // Filter out non-image files (basic check)
       const imageFiles = filesArray.filter(file => file.type.startsWith('image/'));
       
       setShopImageFiles(prev => [...prev, ...imageFiles]);
@@ -113,7 +116,6 @@ export default function ManageShopPage() {
   };
 
   const removeImagePreview = (urlToRemove: string) => {
-    // Revoke object URL if it's a new file preview
     const fileToRemove = shopImageFiles.find(file => URL.createObjectURL(file) === urlToRemove);
     if (fileToRemove) {
       URL.revokeObjectURL(urlToRemove);
@@ -133,33 +135,43 @@ export default function ManageShopPage() {
     
     // In a real app:
     // 1. Upload `shopImageFiles` to Firebase Storage, get their download URLs.
-    // 2. Combine these new URLs with existing `imagePreviews` that weren't removed.
+    // 2. Combine these new URLs with existing `imagePreviews` that weren't removed (filter out blob URLs if needed).
     // 3. Save all shop data to Firestore.
 
     const finalShopData: Barbershop = {
         ...shopDetails,
-        id: shopDetails.id || `shop-${Date.now()}`, // Ensure an ID exists
-        name: shopDetails.name!, // Name is required
+        id: shopDetails.id || `shop-${user.uid}-${Date.now()}`, // Ensure an ID, perhaps user-specific for new shops
+        name: shopDetails.name!, 
         ownerId: user.uid,
         services,
         availability,
-        photos: imagePreviews, // In real app, use processed URLs
-        // description: shopDetails.description,
+        photos: imagePreviews, // In real app, use processed URLs from storage
     } as Barbershop;
-    console.log("Saving shop data (mock):", finalShopData);
-
-    // MOCK saving process
-    await new Promise(resolve => setTimeout(resolve, 1500));
     
-    // Update mockShopsArray for current session demo
+    // MOCK saving process to mockShopsArray
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
     const shopIndex = mockShopsArray.findIndex(s => s.id === finalShopData.id);
     if (shopIndex > -1) {
         mockShopsArray[shopIndex] = finalShopData;
     } else {
         mockShopsArray.push(finalShopData);
+        // If this is the first shop for this shopkeeper based on mockShopkeeperOwnedShopId logic:
+        // This example uses one hardcoded mockShopkeeperOwnedShopId.
+        // A real app would associate shops with user.uid.
+        if (finalShopData.id === mockShopkeeperOwnedShopId || (mockShopkeeperOwnedShopId === null && user.uid === "shopkeeper1_uid" /* example UID */) ) {
+             // Potentially update some global context if needed, but for mock, updating array is key.
+        }
     }
 
-    toast({ title: "Shop Updated", description: `${shopDetails.name} details have been saved. (Mocked)`});
+    // Update local state to reflect the "saved" data immediately on this page
+    setShopDetails(finalShopData);
+    setServices(finalShopData.services || []);
+    setAvailability(finalShopData.availability || JSON.parse(JSON.stringify(defaultAvailability)));
+    setImagePreviews(finalShopData.photos || []);
+    setShopImageFiles([]); // Clear staged files
+
+    toast({ title: "Shop Updated", description: `${finalShopData.name} details have been saved. (Mocked)`});
     setIsSaving(false);
   };
   
@@ -339,3 +351,5 @@ export default function ManageShopPage() {
     </form>
   );
 }
+
+
