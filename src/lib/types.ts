@@ -14,7 +14,7 @@ export interface UserProfile {
 
 export interface UserProfileUpdateData {
   displayName?: string | null;
-  photoURL?: string | null; // In a real app, this would be the Firebase Storage URL
+  photoURL?: string | null; 
   preferredBarber?: string;
   addresses?: UserAddress[];
 }
@@ -133,18 +133,44 @@ export interface ServiceRequest {
 
 // Types for Personalized Shop Recommendations AI Flow
 export interface RecommendShopsInput {
-  userId: string; // For future use with actual user preferences
-  serviceInterest?: string; // e.g., "Classic Haircut", "Beard Trim"
-  // In a real app, you might include location, past booking history, explicit preferences, etc.
+  userId: string; 
+  serviceInterest?: string;
 }
 
 export interface RecommendedShopInfo {
   shopId: string;
   shopName: string;
-  reason: string; // Why this shop is recommended
+  reason: string; 
 }
 
 export interface RecommendShopsOutput {
   recommendations: RecommendedShopInfo[];
-  overallReasoning: string; // A summary of why these shops are good choices
+  overallReasoning: string; 
+}
+
+// Types for AI Service Description Generator
+export interface GenerateServiceDescriptionInput {
+  serviceName: string;
+  keywords?: string; // Optional keywords to guide the AI
+}
+
+export interface GenerateServiceDescriptionOutput {
+  description: string;
+}
+
+// Types for AI Customer Support Chatbot
+export interface ChatbotMessage {
+  id: string;
+  text: string;
+  sender: 'user' | 'bot';
+  timestamp: Date;
+}
+export interface CustomerSupportChatbotInput {
+  userQuery: string;
+  // Optional: to provide conversation history for context
+  chatHistory?: Array<{role: 'user' | 'model', parts: [{text: string}]}>; 
+}
+
+export interface CustomerSupportChatbotOutput {
+  botResponse: string;
 }

@@ -1,18 +1,19 @@
 
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google"; // Corrected import name
+import { Geist, Geist_Mono } from "next/font/google"; 
 import "./globals.css";
 import { AuthProvider } from "@/contexts/auth-context";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
-import { Toaster } from "@/components/ui/toaster"; // ShadCN Toaster
+import { Toaster } from "@/components/ui/toaster"; 
+import { AiChatbotWidget } from "@/components/chatbot/ai-chatbot-widget"; // Import the chatbot widget
 
-const geistSans = Geist({ // Corrected variable name
+const geistSans = Geist({ 
   variable: "--font-geist-sans",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({ // Corrected variable name
+const geistMono = Geist_Mono({ 
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
@@ -40,6 +41,7 @@ export default function RootLayout({
             <Footer />
           </div>
           <Toaster />
+          <AiChatbotWidget /> {/* Add chatbot widget here */}
         </AuthProvider>
       </body>
     </html>
