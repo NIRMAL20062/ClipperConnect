@@ -31,8 +31,13 @@ let app: FirebaseApp;
 if (!getApps().length) {
   // Check if all critical config values are present
   if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId) {
-    console.error("Firebase configuration is missing or incomplete. Please check your .env file and Firebase project settings.");
-    // Potentially throw an error or handle this state appropriately
+    console.error(
+      "Firebase configuration is missing or incomplete. " +
+      "Please ensure NEXT_PUBLIC_FIREBASE_API_KEY, NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, and NEXT_PUBLIC_FIREBASE_PROJECT_ID " +
+      "have correct values in your .env file and that the Firebase project settings are accurate."
+    );
+    // Potentially throw an error or handle this state appropriately,
+    // though for client-side init, it might proceed and fail at auth/db operations.
   }
   app = initializeApp(firebaseConfig);
 } else {
