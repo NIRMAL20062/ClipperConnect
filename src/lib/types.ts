@@ -5,6 +5,7 @@ export interface UserProfile {
   displayName: string | null;
   photoURL: string | null;
   role: 'user' | 'shopkeeper'; // Role is now mandatory
+  phoneNumber?: string | null; // For phone auth
   preferredBarber?: string;
   addresses?: UserAddress[];
   createdAt?: any; // Firestore server timestamp
