@@ -15,8 +15,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/auth-context";
-import { Home, LogIn, LogOut, User, Briefcase, Scissors, Search, Menu } from "lucide-react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Home, LogIn, LogOut, User, Briefcase, Scissors, Search, Menu, BellRing } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from "@/components/ui/sheet"; // Ensured SheetTrigger is imported
 import { useState } from "react";
 
 export function Header() {
@@ -29,10 +29,19 @@ export function Header() {
     router.push("/");
   };
 
-  const mainNavLinks = [
+  const mainNavLinksBase = [
     { href: "/", label: "Home", icon: Home },
     { href: "/shops", label: "Find Shops", icon: Search },
   ];
+
+  const customerNavLinks = [
+     { href: "/request-service", label: "Broadcast Request", icon: BellRing },
+  ];
+
+  const mainNavLinks = user && user.role === 'user' 
+    ? [...mainNavLinksBase, ...customerNavLinks] 
+    : mainNavLinksBase;
+
 
   const userNavLinks = user ? [
     { href: "/profile", label: "Profile", icon: User },
@@ -49,7 +58,7 @@ export function Header() {
   );
   
   const MobileNavLinkItem = ({ href, label, icon: Icon, onClick }: { href: string; label:string; icon: React.ElementType; onClick?: () => void }) => (
-     <Link href={href} onClick={onClick} className="flex items-center p-3 rounded-md hover:bg-accent">
+     <Link href={href} onClick={onClick} className="flex items-center p-3 rounded-md hover:bg-accent text-sm">
         <Icon className="h-5 w-5 mr-3" />
         {label}
       </Link>
@@ -62,7 +71,7 @@ export function Header() {
         <Logo href="/" />
         
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center space-x-2 lg:space-x-4">
+        <nav className="hidden md:flex items-center space-x-1 lg:space-x-2">
           {mainNavLinks.map(link => <NavLinkItem key={link.href} {...link} />)}
           {user && userNavLinks.map(link => <NavLinkItem key={link.href} {...link} />)}
         </nav>
@@ -117,18 +126,17 @@ export function Header() {
                 <span className="sr-only">Toggle menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-[300px] sm:w-[400px] p-0">
-              <SheetHeader>
-                <SheetTitle className="sr-only">Mobile Navigation Menu</SheetTitle>
-                {/* You can also add a SheetDescription here if needed, also sr-only */}
-              </SheetHeader>
-              <div className="p-6 border-b">
-                <Logo href="/" onClick={() => setMobileMenuOpen(false)} />
-              </div>
-              <nav className="flex flex-col gap-1 p-4">
-                {mainNavLinks.map(link => <MobileNavLinkItem key={link.href} {...link} onClick={() => setMobileMenuOpen(false)} />)}
-                {user && userNavLinks.map(link => <MobileNavLinkItem key={link.href} {...link} onClick={() => setMobileMenuOpen(false)} />)}
-                <div className="pt-4 mt-4 border-t">
+            <SheetContent side="left" className="w-[300px] sm:w-[400px] p-0 flex flex-col">
+                <SheetHeader className="p-6 border-b">
+                  <SheetTitle className="sr-only">Mobile Menu</SheetTitle>
+                  <SheetDescription className="sr-only">Main navigation links for ClipperConnect.</SheetDescription>
+                  <Logo href="/" onClick={() => setMobileMenuOpen(false)} />
+                </SheetHeader>
+                <nav className="flex flex-col gap-1 p-4 flex-grow overflow-y-auto">
+                    {mainNavLinks.map(link => <MobileNavLinkItem key={link.href} {...link} onClick={() => setMobileMenuOpen(false)} />)}
+                    {user && userNavLinks.map(link => <MobileNavLinkItem key={link.href} {...link} onClick={() => setMobileMenuOpen(false)} />)}
+                </nav>
+                <div className="p-4 border-t mt-auto">
                 {user ? (
                     <Button variant="outline" className="w-full" onClick={() => { handleSignOut(); setMobileMenuOpen(false); }}>
                       <LogOut className="mr-2 h-4 w-4" /> Sign Out
@@ -139,7 +147,6 @@ export function Header() {
                     </Button>
                   )}
                 </div>
-              </nav>
             </SheetContent>
           </Sheet>
         </div>

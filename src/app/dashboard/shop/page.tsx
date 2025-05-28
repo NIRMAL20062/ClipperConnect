@@ -4,7 +4,7 @@
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart3, BookOpenText, Settings, Bot, CalendarDays, Users, DollarSign } from "lucide-react";
+import { BarChart3, BookOpenText, Settings, Bot, CalendarDays, Users, DollarSign, ListChecks } from "lucide-react"; // Added ListChecks
 import Link from "next/link";
 
 // Mock data for daily insights
@@ -62,6 +62,12 @@ export default function ShopkeeperDashboardPage() {
             title="Manage Bookings"
             description="View, accept, reject, or cancel incoming appointments."
             icon={<BookOpenText className="h-8 w-8 text-accent" />}
+          />
+           <ActionCard
+            href="/dashboard/shop/open-requests"
+            title="Open Service Requests"
+            description="View and respond to general service requests from customers."
+            icon={<ListChecks className="h-8 w-8 text-accent" />}
           />
           <ActionCard
             href="/dashboard/shop/ai-scheduler"

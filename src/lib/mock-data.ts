@@ -1,6 +1,6 @@
 
-import type { Barbershop, Booking, UserAddress, AvailabilitySlot } from './types';
-import { addDays, addMinutes, subDays } from 'date-fns';
+import type { Barbershop, Booking, UserAddress, AvailabilitySlot, ServiceRequest as MockServiceRequestType } from './types'; // Renamed to avoid conflict with local MockServiceRequest
+import { addDays, addMinutes, subDays, subHours } from 'date-fns'; // Added subHours
 
 export const mockUserAddresses: UserAddress[] = [
   {id: "addr1", street: "123 Main St", city: "Anytown", state: "CA", zipCode: "90210", isPrimary: true},
@@ -23,7 +23,7 @@ export const mockShopsArray: Barbershop[] = [
     name: "Gentleman's Choice Cuts",
     ownerId: "shopkeeper1_uid",
     photos: [
-        "https://placehold.co/800x400.png?text=Gentleman's+Choice+Main",
+        "https://t3.ftcdn.net/jpg/11/20/21/70/240_F_1120217022_EIphwSclvOAbNXOrB8L6kJHCMQfzIHbd.jpg",
         "https://placehold.co/400x300.png?text=Interior+1",
         "https://placehold.co/400x300.png?text=Tools"
     ],
@@ -111,9 +111,8 @@ export const mockShopsArray: Barbershop[] = [
 const today = new Date();
 export const mockUserBookings: Booking[] = mockShopsArray.flatMap((shop, shopIndex) => {
   const bookingsForShop: Booking[] = [];
-  const baseUserId = "user1"; // Can be varied if needed
+  const baseUserId = "user1"; 
 
-  // Upcoming confirmed booking
   if (shop.services.length > 0) {
     const service1 = shop.services[0];
     bookingsForShop.push({
@@ -133,7 +132,6 @@ export const mockUserBookings: Booking[] = mockShopsArray.flatMap((shop, shopInd
     });
   }
 
-  // Past completed booking
   if (shop.services.length > 1) {
     const service2 = shop.services[1 % shop.services.length];
     bookingsForShop.push({
@@ -151,7 +149,7 @@ export const mockUserBookings: Booking[] = mockShopsArray.flatMap((shop, shopInd
       shopLocation: shop.location,
       shopGoogleMapsLink: shop.location.googleMapsLink,
     });
-  } else if (shop.services.length > 0) { // Ensure at least one service exists
+  } else if (shop.services.length > 0) { 
      const service1 = shop.services[0];
      bookingsForShop.push({
       id: `booking-${shop.id}-completed-alt`,
@@ -170,8 +168,6 @@ export const mockUserBookings: Booking[] = mockShopsArray.flatMap((shop, shopInd
     });
   }
 
-
-  // Upcoming pending booking (for one shop)
   if (shopIndex === 0 && shop.services.length > 0) {
      const service1 = shop.services[0];
     bookingsForShop.push({
@@ -191,8 +187,7 @@ export const mockUserBookings: Booking[] = mockShopsArray.flatMap((shop, shopInd
     });
   }
   
-  // Cancelled booking
-  if (shopIndex === 1 && shop.services.length > 0) { // For the second shop
+  if (shopIndex === 1 && shop.services.length > 0) { 
     const service1 = shop.services[0];
     bookingsForShop.push({
       id: `booking-${shop.id}-cancelled`,
@@ -201,7 +196,7 @@ export const mockUserBookings: Booking[] = mockShopsArray.flatMap((shop, shopInd
       serviceId: service1.id,
       serviceName: service1.name,
       shopName: shop.name,
-      startTime: addDays(new Date(new Date().setHours(9, 0, 0, 0)), 4), // Was upcoming
+      startTime: addDays(new Date(new Date().setHours(9, 0, 0, 0)), 4), 
       endTime: addMinutes(addDays(new Date(new Date().setHours(9, 0, 0, 0)), 4), service1.durationMinutes),
       status: "cancelled_by_user",
       cancellationReason: "Changed my plans.",
@@ -211,15 +206,13 @@ export const mockUserBookings: Booking[] = mockShopsArray.flatMap((shop, shopInd
       shopGoogleMapsLink: shop.location.googleMapsLink,
     });
   }
-
   return bookingsForShop;
-}).slice(0, 5); // Take first 5 bookings to keep the list manageable
+}).slice(0, 5); 
 
 
-export const mockShopkeeperOwnedShopId = "1"; // Gentleman's Choice Cuts
+export const mockShopkeeperOwnedShopId = "1"; 
 
 export const mockShopBookingsForShopkeeper: Booking[] = [
-  // Bookings for shopId: "1"
   {
     id: "booking101", userId: "userA_uid", userName: "Alice Wonderland", shopId: "1", serviceId: "s1", serviceName: "Classic Haircut",
     startTime: addDays(new Date(today.setHours(10,0,0,0)), 1),
@@ -250,11 +243,48 @@ export const mockShopBookingsForShopkeeper: Booking[] = [
     endTime: addMinutes(subDays(new Date(today.setHours(17,0,0,0)), 2), 25),
     status: "cancelled_by_user", cancellationReason: "User changed their mind.", totalPrice: 20, createdAt: subDays(new Date(),3),
   },
-  // Adding some bookings for shopId: "2" to show they don't appear for shopkeeper of shop "1"
   {
     id: "booking201", userId: "userF_uid", userName: "Frank Castle", shopId: "2", serviceId: "s3", serviceName: "Designer Cut",
     startTime: addDays(new Date(today.setHours(12,0,0,0)), 1),
     endTime: addMinutes(addDays(new Date(today.setHours(12,0,0,0)), 1), 60),
     status: "confirmed", totalPrice: 50, createdAt: new Date(),
   }
-].filter(b => b.shopId === mockShopkeeperOwnedShopId); // Ensure only bookings for the owned shop are included
+].filter(b => b.shopId === mockShopkeeperOwnedShopId);
+
+export const mockServiceRequests: MockServiceRequestType[] = [
+  {
+    id: 'req1',
+    userId: 'user1',
+    userName: 'Elena P.',
+    userPhotoUrl: 'https://placehold.co/40x40.png',
+    serviceDescription: 'Men\'s Haircut and Beard Trim',
+    requestedDate: addDays(new Date(), 2),
+    preferredTime: 'afternoon',
+    notes: 'Looking for a sharp fade.',
+    status: 'pending',
+    createdAt: new Date(),
+  },
+  {
+    id: 'req2',
+    userId: 'user2',
+    userName: 'John D.',
+    userPhotoUrl: 'https://placehold.co/40x40.png',
+    serviceDescription: 'Standard Haircut, needs to be quick!',
+    requestedDate: addDays(new Date(), 1),
+    preferredTime: 'morning',
+    notes: 'Available anytime before noon. Have an important meeting.',
+    status: 'pending',
+    createdAt: subHours(new Date(), 2),
+  },
+  {
+    id: 'req3',
+    userId: 'user3',
+    userName: 'Samantha G.',
+    userPhotoUrl: 'https://placehold.co/40x40.png',
+    serviceDescription: 'Kids Haircut (age 5)',
+    requestedDate: addDays(new Date(), 3),
+    preferredTime: 'any',
+    status: 'pending',
+    createdAt: subHours(new Date(), 5),
+  },
+];
