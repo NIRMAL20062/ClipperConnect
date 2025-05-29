@@ -2,7 +2,7 @@
 "use client";
 
 import type { User as FirebaseUser } from "firebase/auth";
-import { auth, db, appCheck } from "@/lib/firebase"; // appCheck is also exported now
+import { auth, db } from "@/lib/firebase"; // appCheck removed
 import {
   onAuthStateChanged,
   GoogleAuthProvider,
@@ -43,10 +43,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           const intendedRole = localStorage.getItem(INTENDED_ROLE_LS_KEY) as UserProfile['role'] | null;
           const roleToSet = intendedRole || 'user';
-
-          if (!intendedRole && !firebaseUser.isAnonymous) { 
-            console.warn("Intended role not found for new user. Defaulting to 'user'.");
-          }
           
           if (firebaseUser.email) {
             const emailQuery = query(collection(db, "users"), where("email", "==", firebaseUser.email));
@@ -88,8 +84,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             setLoading(true); 
             const result = await getRedirectResult(auth);
-            // If result.user exists, onAuthStateChanged will handle it.
-            // If not, proceed to onAuthStateChanged or initial currentUser check.
         } catch (error: any) {
             console.error("Error processing redirect result:", error);
             if (error.code === 'auth/account-exists-with-different-credential') {
@@ -98,8 +92,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             firebaseSignOut(auth).catch(e => console.warn("Sign out attempt during redirect error handling failed:", e));
             setUser(null);
             localStorage.removeItem(INTENDED_ROLE_LS_KEY);
-        } finally {
-            // setLoading(false) will be handled by onAuthStateChanged or if !auth.currentUser below
         }
     };
 
@@ -113,14 +105,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setLoading(false); 
           });
         });
-        // Initial check in case onAuthStateChanged doesn't fire immediately or no redirect occurred
-        if (!auth.currentUser && loading) { // If still loading and no user after redirect attempt
+        if (!auth.currentUser && loading) {
              setLoading(false);
         }
         return () => unsubscribe();
       } catch (error) {
         console.error("Synchronous error setting up onAuthStateChanged:", error);
-        setLoading(false); // Ensure loading is false if setup fails
+        setLoading(false); 
       }
     });
 
@@ -132,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithRedirect(auth, provider);
+      // Redirect initiated. setLoading(false) will be handled by onAuthStateChanged or redirect result processing.
     } catch (error: any) {
       console.error("Error initiating Google sign-in redirect:", error);
       localStorage.removeItem(INTENDED_ROLE_LS_KEY);
@@ -139,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error.message && (error.message.includes('identitytoolkit-api-has-not-been-used') || error.message.includes('requests-to-this-api-identitytoolkit-method') || error.message.includes('blocked') )) {
         throw new Error('Google Sign-In failed: The Identity Toolkit API may be disabled or not configured correctly for your Google Cloud project. Please visit https://console.developers.google.com/apis/api/identitytoolkit.googleapis.com/overview to enable it and try again. If recently enabled, wait a few minutes.');
       } else if (error.code === 'auth/api-key-not-valid') {
-        throw new Error('Google Sign-In failed: The API key used by the Firebase SDK is not valid. Please check your .env file (NEXT_PUBLIC_FIREBASE_API_KEY) and ensure it matches a valid Browser Key from your Google Cloud project credentials that has permissions for Identity Toolkit API.');
+        throw new Error('Google Sign-In failed: The API key (NEXT_PUBLIC_FIREBASE_API_KEY in .env) is not valid for your Firebase project. Please check your .env file and ensure it matches a valid Browser Key from your Google Cloud project credentials that has permissions for Identity Toolkit API.');
       }
       throw new Error(error.message || "Google Sign-In failed. Please try again.");
     }
@@ -157,7 +149,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(INTENDED_ROLE_LS_KEY, intendedRole); 
     try {
       await firebaseCreateUserWithEmailAndPassword(auth, email, password);
-    } catch (error: any) {
+      // onAuthStateChanged will handle profile creation and set user state.
+    } catch (error: any) { 
       console.error("Error signing up with email and password:", error);
       localStorage.removeItem(INTENDED_ROLE_LS_KEY);
       setLoading(false);
@@ -175,8 +168,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       await firebaseSignInWithEmailAndPassword(auth, email, password);
+      // onAuthStateChanged will fetch the user profile. The setLoading(false) will be handled by processAuthUser.
     } catch (error: any) {
-      console.error("Error signing in with email and password:", error); 
+      console.error("Error signing in with email and password:", error); // For developer debugging
       setLoading(false);
       if (error.code === 'auth/user-not-found' || 
           error.code === 'auth/wrong-password' ||
