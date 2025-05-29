@@ -5,12 +5,14 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Star, MapPin, DollarSign, ArrowRight } from "lucide-react";
 import type { Barbershop } from "@/lib/types";
+import React from "react"; // Import React
 
 interface ShopCardProps {
   shop: Barbershop;
 }
 
-export function ShopCard({ shop }: ShopCardProps) {
+// Use React.memo to prevent re-rendering if props haven't changed
+export const ShopCard = React.memo(function ShopCard({ shop }: ShopCardProps) {
   return (
     <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full">
       <div className="relative w-full h-48">
@@ -52,4 +54,6 @@ export function ShopCard({ shop }: ShopCardProps) {
       </CardFooter>
     </Card>
   );
-}
+});
+
+ShopCard.displayName = 'ShopCard'; // It's good practice to set displayName when using React.memo with a named function expression
