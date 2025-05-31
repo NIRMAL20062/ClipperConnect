@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarCheck, History, PlusCircle, MapPin, CalendarPlus, AlertTriangle, ExternalLink, Sparkles, ShoppingBag, ThumbsUp } from "lucide-react";
+import { CalendarCheck, History, PlusCircle, MapPin, CalendarPlus, AlertTriangle, ExternalLink, Sparkles, ShoppingBag, ThumbsUp, Send } from "lucide-react"; // Added Send
 import type { Booking, RecommendedShopInfo } from "@/lib/types";
 import Link from "next/link";
 import { format, formatISO, parse } from "date-fns";
@@ -122,7 +122,7 @@ export default function UserDashboardPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
             <h1 className="text-3xl font-bold tracking-tight">Welcome, {user.displayName || "User"}!</h1>
-            <p className="text-muted-foreground">Manage your appointments and view your booking history.</p>
+            <p className="text-muted-foreground">Manage your appointments and discover new services.</p>
         </div>
         <Button asChild className="bg-primary hover:bg-primary/90 text-primary-foreground">
           <Link href="/shops">
@@ -130,6 +130,25 @@ export default function UserDashboardPage() {
           </Link>
         </Button>
       </div>
+
+      {/* Broadcast Service Request Card */}
+      <Card className="shadow-lg border-primary bg-primary/5">
+        <CardHeader>
+          <CardTitle className="flex items-center text-2xl text-primary">
+            <Send className="mr-3 h-7 w-7" /> Broadcast a Service Request
+          </CardTitle>
+          <CardDescription className="text-base text-primary/80">
+            Need a specific service or time? Describe your needs, and available shopkeepers can respond directly to you. It's like sending out a request to all nearby shops!
+          </CardDescription>
+        </CardHeader>
+        <CardFooter>
+          <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground">
+            <Link href="/request-service">
+              Create Service Request
+            </Link>
+          </Button>
+        </CardFooter>
+      </Card>
 
       {/* AI Recommendations Section */}
       <Card className="shadow-lg border-accent">
@@ -303,7 +322,7 @@ function BookingList({ bookings, onCancel, isUpcoming }: BookingListProps) {
                  <div className="w-full text-sm text-muted-foreground italic flex items-center">
                      This booking was cancelled by you.
                      <Button variant="link" asChild className="ml-1 p-0 h-auto">
-                        <Link href={`/shops/${booking.shopId}`}>Rebook at {booking.shopName || "Shop"}</Link>
+                        <Link href={`/shops/${booking.shopId}?service=${booking.serviceId}`}>Rebook at {booking.shopName || "Shop"}</Link>
                      </Button>
                  </div>
               )}
@@ -332,3 +351,4 @@ function BookingList({ bookings, onCancel, isUpcoming }: BookingListProps) {
     
 
     
+
