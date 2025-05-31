@@ -162,3 +162,8 @@ Developed by **Bardx** – a first-year Computer Science student with a passion 
 # Firebase Studio
 This is a NextJS starter in Firebase Studio.
 To get started, take a look at src/app/page.tsx.
+Terminal 1 (for the Next.js app):
+npm install (only need to do this once, or when dependencies change)
+npm run dev
+Terminal 2 (for Genkit, if using AI features):
+npm run genkit:dev
